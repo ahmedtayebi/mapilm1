@@ -1,45 +1,79 @@
-# Miscellaneous
-*.class
-*.log
-*.pyc
-*.swp
-.DS_Store
-.atom/
-.build/
-.buildlog/
-.history
-.svn/
-.swiftpm/
-migrate_working_dir/
+# ══════════════════════════════════════════════════════════════════════════════
+# mapilm_app — Flutter / Dart .gitignore
+# ══════════════════════════════════════════════════════════════════════════════
 
-# IntelliJ related
+# ── Secrets (NEVER commit) ──────────────────────────────────────────────────
+.env
+android/app/google-services.json
+ios/Runner/GoogleService-Info.plist
+android/key.properties
+android/**/*.keystore
+android/**/*.jks
+
+# ── OS ──────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ── Editors ─────────────────────────────────────────────────────────────────
+.idea/
+.vscode/
 *.iml
 *.ipr
 *.iws
-.idea/
+.history/
 
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
-#.vscode/
-
-# Flutter/Dart/Pub related
-**/doc/api/
-**/ios/Flutter/.last_build_id
+# ── Flutter / Dart ───────────────────────────────────────────────────────────
 .dart_tool/
+.flutter-plugins
 .flutter-plugins-dependencies
+.packages
 .pub-cache/
 .pub/
 /build/
 /coverage/
 
-# Symbolication related
-app.*.symbols
+# Generated code
+**/*.g.dart
+**/*.freezed.dart
+**/*.mocks.dart
 
-# Obfuscation related
+# Symbolication / obfuscation
+app.*.symbols
 app.*.map.json
 
-# Android Studio will place build artifacts here
-/android/app/debug
-/android/app/profile
-/android/app/release
+# ── Android ──────────────────────────────────────────────────────────────────
+android/.gradle/
+android/captures/
+android/local.properties
+android/app/debug/
+android/app/profile/
+android/app/release/
+android/GeneratedPluginRegistrant.java
+android/.cxx/
+
+# ── iOS ───────────────────────────────────────────────────────────────────────
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+ios/Flutter/Generated.xcconfig
+ios/Flutter/ephemeral/
+ios/Flutter/app.flx
+ios/Flutter/app.zip
+ios/Flutter/flutter_assets/
+ios/Flutter/flutter_export_environment.sh
+ios/Flutter/.last_build_id
+ios/**/DerivedData/
+ios/**/xcuserdata/
+ios/**/*.mode1v3
+ios/**/*.mode2v3
+ios/**/*.pbxuser
+ios/**/*.perspectivev3
+ios/**/dgph
+
+# ── macOS ─────────────────────────────────────────────────────────────────────
+macos/Flutter/GeneratedPluginRegistrant.swift
+macos/Flutter/ephemeral/
+
+# ── Logs ──────────────────────────────────────────────────────────────────────
+*.log

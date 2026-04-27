@@ -1,0 +1,126 @@
+# ══════════════════════════════════════════════════════════════════════════════
+# Root .gitignore — covers both mapilm_app/ (Flutter) and mapilm_backend/ (Django)
+# ══════════════════════════════════════════════════════════════════════════════
+
+# ── OS ─────────────────────────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+desktop.ini
+
+# ── Editors ────────────────────────────────────────────────────────────────
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+*.swp
+*.swo
+*~
+.history/
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Flutter / Dart  (mapilm_app/)
+# ══════════════════════════════════════════════════════════════════════════════
+
+# Secrets — NEVER commit these
+mapilm_app/.env
+mapilm_app/android/app/google-services.json
+mapilm_app/ios/Runner/GoogleService-Info.plist
+
+# Build output
+mapilm_app/build/
+mapilm_app/.dart_tool/
+mapilm_app/.flutter-plugins
+mapilm_app/.flutter-plugins-dependencies
+mapilm_app/.packages
+mapilm_app/.pub-cache/
+mapilm_app/.pub/
+mapilm_app/coverage/
+
+# Generated files
+mapilm_app/**/*.g.dart
+mapilm_app/**/*.freezed.dart
+mapilm_app/**/*.mocks.dart
+
+# Android build artifacts
+mapilm_app/android/.gradle/
+mapilm_app/android/captures/
+mapilm_app/android/local.properties
+mapilm_app/android/key.properties
+mapilm_app/android/**/*.keystore
+mapilm_app/android/**/*.jks
+mapilm_app/android/app/debug/
+mapilm_app/android/app/profile/
+mapilm_app/android/app/release/
+
+# iOS build artifacts
+mapilm_app/ios/Pods/
+mapilm_app/ios/Flutter/Flutter.framework
+mapilm_app/ios/Flutter/Flutter.podspec
+mapilm_app/ios/Flutter/Generated.xcconfig
+mapilm_app/ios/Flutter/ephemeral/
+mapilm_app/ios/Flutter/app.flx
+mapilm_app/ios/Flutter/app.zip
+mapilm_app/ios/Flutter/flutter_assets/
+mapilm_app/ios/Flutter/flutter_export_environment.sh
+mapilm_app/ios/**/DerivedData/
+mapilm_app/ios/**/xcuserdata/
+
+# Obfuscation / symbolication
+mapilm_app/app.*.symbols
+mapilm_app/app.*.map.json
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Django  (mapilm_backend/)
+# ══════════════════════════════════════════════════════════════════════════════
+
+# Secrets — NEVER commit these
+mapilm_backend/.env
+mapilm_backend/firebase-credentials.json
+mapilm_backend/firebase_credentials.json
+
+# Python bytecode
+mapilm_backend/__pycache__/
+mapilm_backend/**/__pycache__/
+mapilm_backend/*.pyc
+mapilm_backend/**/*.pyc
+mapilm_backend/*.pyo
+mapilm_backend/**/*.pyo
+mapilm_backend/*.pyd
+
+# Virtual environments
+mapilm_backend/venv/
+mapilm_backend/.venv/
+mapilm_backend/env/
+mapilm_backend/.env.bak
+
+# Django collected static & media
+mapilm_backend/staticfiles/
+mapilm_backend/media/
+
+# SQLite (local dev only)
+mapilm_backend/db.sqlite3
+mapilm_backend/*.sqlite3
+
+# Logs
+mapilm_backend/*.log
+mapilm_backend/logs/
+
+# Celery
+mapilm_backend/celerybeat-schedule
+mapilm_backend/celerybeat.pid
+
+# Coverage
+mapilm_backend/.coverage
+mapilm_backend/htmlcov/
+mapilm_backend/.pytest_cache/
+
+# Distribution / packaging
+mapilm_backend/dist/
+mapilm_backend/build/
+mapilm_backend/*.egg-info/
