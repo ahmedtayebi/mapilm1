@@ -6,7 +6,7 @@ from channels.security.websocket import AllowedHostsOriginValidator
 from django.core.asgi import get_asgi_application
 
 # Django must be fully set up before importing any app modules
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings.production')
+os.environ['DJANGO_SETTINGS_MODULE'] = 'config.settings.production'
 django.setup()
 
 # HTTP handler — must be created after django.setup()
