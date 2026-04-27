@@ -199,8 +199,12 @@ except json.JSONDecodeError:
     _firebase_creds = {}
 
 if _firebase_creds and not firebase_admin._apps:
-    _cred = credentials.Certificate(_firebase_creds)
-    firebase_admin.initialize_app(_cred)
+    try:
+        _cred = credentials.Certificate(_firebase_creds)
+        firebase_admin.initialize_app(_cred)
+    except Exception as _e:
+        import logging as _logging
+        _logging.getLogger(__name__).warning('Firebase init failed: %s', _e)
 
 # ── Logging ─────────────────────────────────────────────────────────────────
 LOGGING = {
