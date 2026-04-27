@@ -1,0 +1,73 @@
+name: mapilm_app
+description: Mapilm - Arabic Messaging Application
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  # State Management
+  flutter_riverpod: ^2.5.1
+
+  # Navigation
+  go_router: ^13.2.0
+
+  # Network
+  dio: ^5.4.3
+  web_socket_channel: ^2.4.0
+
+  # Firebase
+  firebase_auth: ^4.19.5
+  firebase_messaging: ^14.9.1
+  firebase_core: ^2.30.1
+
+  # Media
+  image_picker: ^1.1.2
+  record: ^5.1.2
+  just_audio: ^0.9.38
+  cached_network_image: ^3.3.1
+
+  # UI
+  flutter_animate: ^4.5.0
+  shimmer: ^3.0.0
+  flutter_svg: ^2.0.10+1
+  google_fonts: ^6.2.1
+
+  # Utilities
+  intl: ^0.20.2
+  encrypt: ^5.0.3
+  share_plus: ^9.0.0
+  permission_handler: ^11.3.1
+  flutter_local_notifications: ^17.2.1
+  flutter_dotenv: ^5.1.0
+  equatable: ^2.0.5
+  dartz: ^0.10.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - .env
+    - assets/images/
+    - assets/icons/
+  fonts:
+    - family: Tajawal
+      fonts:
+        - asset: assets/fonts/Tajawal-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Tajawal-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Tajawal-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/Tajawal-ExtraBold.ttf
+          weight: 800
