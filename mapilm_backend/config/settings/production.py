@@ -33,7 +33,7 @@ DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
 CACHES = {
     'default': {
         'BACKEND': 'django.core.cache.backends.redis.RedisCache',
-        'LOCATION': config('REDIS_URL'),
+        'LOCATION': config('REDIS_URL', default='redis://localhost:6379'),
         'OPTIONS': {
             'socket_connect_timeout': 5,
             'socket_timeout': 5,
