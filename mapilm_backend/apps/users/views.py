@@ -1,6 +1,5 @@
 import logging
 
-import cloudinary.uploader
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser

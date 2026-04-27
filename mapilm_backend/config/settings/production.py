@@ -5,6 +5,12 @@ DEBUG = False
 
 ALLOWED_HOSTS = ['*']
 
+# Strip drf_spectacular — docs are disabled in production; keeping it loaded
+# consumes ~50-80 MB of schema introspection overhead on every worker boot.
+INSTALLED_APPS = [app for app in INSTALLED_APPS if app != 'drf_spectacular']  # noqa: F405
+
+REST_FRAMEWORK['DEFAULT_SCHEMA_CLASS'] = 'rest_framework.schemas.openapi.AutoSchema'  # noqa: F405
+
 # ── Security ────────────────────────────────────────────────────────────────
 SECURE_SSL_REDIRECT = False
 SECURE_HSTS_SECONDS = 31536000
@@ -35,11 +41,21 @@ CACHES = {
         'BACKEND': 'django.core.cache.backends.redis.RedisCache',
         'LOCATION': config('REDIS_URL', default='redis://localhost:6379'),
         'OPTIONS': {
-            'socket_connect_timeout': 5,
-            'socket_timeout': 5,
+            'socket_connect_timeout': 2,
+            'socket_timeout': 2,
         },
     }
 }
+
+# ── Throttling ───────────────────────────────────────────────────────────────
+# Override throttle classes with cache-safe versions. Django's RedisCache raises
+# ConnectionError when Redis is unreachable; DRF's check_throttles() does not
+# catch that, so an unhandled exception kills the worker (502). These subclasses
+# swallow cache errors and allow the request instead of crashing.
+REST_FRAMEWORK['DEFAULT_THROTTLE_CLASSES'] = [  # noqa: F405
+    'config.throttles.SafeAnonRateThrottle',
+    'config.throttles.SafeUserRateThrottle',
+]
 
 # ── Logging ─────────────────────────────────────────────────────────────────
 LOGGING['root']['level'] = 'WARNING'  # noqa: F405
