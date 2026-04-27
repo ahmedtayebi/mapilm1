@@ -11,4 +11,4 @@ RUN python manage.py collectstatic --noinput
 
 EXPOSE $PORT
 
-CMD sh -c "daphne -b 0.0.0.0 -p $PORT config.asgi:application"
+CMD sh -c "gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120"
