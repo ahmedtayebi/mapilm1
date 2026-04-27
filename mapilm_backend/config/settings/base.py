@@ -9,7 +9,7 @@ from firebase_admin import credentials
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
-SECRET_KEY = config('SECRET_KEY')
+SECRET_KEY = config('SECRET_KEY', default='dummy-secret-key')
 
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='*', cast=Csv())
 
@@ -79,7 +79,7 @@ ASGI_APPLICATION = 'config.asgi.application'
 import dj_database_url
 DATABASES = {
     'default': dj_database_url.config(
-        default=config('DATABASE_URL'),
+        default=config('DATABASE_URL', default='sqlite:///tmp/db.sqlite3'),
         conn_max_age=600,
         conn_health_checks=True,
     )
@@ -108,9 +108,9 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
 CLOUDINARY_STORAGE = {
-    'CLOUD_NAME': config('CLOUDINARY_CLOUD_NAME'),
-    'API_KEY': config('CLOUDINARY_API_KEY'),
-    'API_SECRET': config('CLOUDINARY_API_SECRET'),
+    'CLOUD_NAME': config('CLOUDINARY_CLOUD_NAME', default='dummy'),
+    'API_KEY': config('CLOUDINARY_API_KEY', default='dummy'),
+    'API_SECRET': config('CLOUDINARY_API_SECRET', default='dummy'),
 }
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
