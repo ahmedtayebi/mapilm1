@@ -11,4 +11,4 @@ RUN python manage.py collectstatic --noinput
 
 EXPOSE $PORT
 
-CMD daphne config.asgi:application --port $PORT --bind 0.0.0.0 -v2
+CMD python manage.py migrate && daphne config.asgi:application --port $PORT --bind 0.0.0.0 -v2

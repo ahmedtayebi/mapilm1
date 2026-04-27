@@ -1,10 +1,15 @@
 from django.contrib import admin
+from django.http import JsonResponse
 from django.urls import path, include
 from drf_spectacular.views import (
     SpectacularAPIView,
     SpectacularRedocView,
     SpectacularSwaggerView,
 )
+
+
+def health_check(request):
+    return JsonResponse({"status": "ok"})
 
 api_v1_patterns = [
     # ── Auth ──────────────────────────────────────────────────────────
@@ -30,6 +35,7 @@ api_v1_patterns = [
 ]
 
 urlpatterns = [
+    path('health/', health_check, name='health-check'),
     path('admin/', admin.site.urls),
     path('api/v1/', include(api_v1_patterns)),
 
