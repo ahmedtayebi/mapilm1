@@ -11,4 +11,4 @@ RUN python manage.py collectstatic --noinput
 
 EXPOSE $PORT
 
-CMD daphne -b 0.0.0.0 -p ${PORT:-8000} config.asgi:application
+CMD sh -c "daphne -b 0.0.0.0 -p $PORT config.asgi:application"
