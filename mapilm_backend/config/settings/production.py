@@ -3,7 +3,7 @@ from decouple import config, Csv
 
 DEBUG = False
 
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost').split(',') + ['healthcheck.railway.app', '.railway.app']
+ALLOWED_HOSTS = ['*']
 
 # ── Security ────────────────────────────────────────────────────────────────
 SECURE_SSL_REDIRECT = False
