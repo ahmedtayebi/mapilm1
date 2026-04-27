@@ -35,27 +35,23 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 # ── Media files (Cloudinary) ─────────────────────────────────────────────────
 DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
 
-# ── Cache (Redis) ────────────────────────────────────────────────────────────
+# ── Cache ─────────────────────────────────────────────────────────────────────
+# Use in-memory cache in production WSGI. Redis is only needed for Celery tasks;
+# throttle counts don't need to survive worker restarts.
 CACHES = {
     'default': {
-        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
-        'LOCATION': config('REDIS_URL', default='redis://localhost:6379'),
-        'OPTIONS': {
-            'socket_connect_timeout': 2,
-            'socket_timeout': 2,
-        },
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
     }
 }
 
-# ── Throttling ───────────────────────────────────────────────────────────────
-# Override throttle classes with cache-safe versions. Django's RedisCache raises
-# ConnectionError when Redis is unreachable; DRF's check_throttles() does not
-# catch that, so an unhandled exception kills the worker (502). These subclasses
-# swallow cache errors and allow the request instead of crashing.
-REST_FRAMEWORK['DEFAULT_THROTTLE_CLASSES'] = [  # noqa: F405
-    'config.throttles.SafeAnonRateThrottle',
-    'config.throttles.SafeUserRateThrottle',
-]
+# ── Channels (WSGI mode) ─────────────────────────────────────────────────────
+# Running gunicorn WSGI — WebSocket consumers are inactive. Use in-memory
+# channel layer so channels_redis never opens a Redis connection in this process.
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels.layers.InMemoryChannelLayer',
+    }
+}
 
 # ── Logging ─────────────────────────────────────────────────────────────────
 LOGGING['root']['level'] = 'WARNING'  # noqa: F405
