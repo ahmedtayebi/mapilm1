@@ -5,6 +5,6 @@ class SendOtpUsecase {
   const SendOtpUsecase(this._repository);
   final AuthRepository _repository;
 
-  Future<Either<String, String>> call(String phone) =>
+  Future<Either<String, String?>> call(String phone) =>
       _repository.sendOtp(phone);
 }

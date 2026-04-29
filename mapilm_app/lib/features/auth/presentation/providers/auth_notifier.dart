@@ -79,8 +79,23 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = const AuthLoading();
     final result = await sendOtp(phone);
     result.fold(
-      (error) => state = AuthError(error),
-      (verificationId) => state = OtpSent(verificationId, phone),
+      (error) { state = AuthError(error); },
+      (verificationId) {
+        if (verificationId == null) {
+          // Android instant-verify: already signed in, exchange token for backend session.
+          _completeAutoVerify();
+        } else {
+          state = OtpSent(verificationId, phone);
+        }
+      },
+    );
+  }
+
+  Future<void> _completeAutoVerify() async {
+    final result = await repository.completeAutoVerify();
+    result.fold(
+      (error) { state = AuthError(error); },
+      (user) { state = AuthSuccess(user); },
     );
   }
 

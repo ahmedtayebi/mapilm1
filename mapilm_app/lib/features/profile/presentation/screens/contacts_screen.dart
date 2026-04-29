@@ -121,7 +121,6 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen>
                             contact: filtered[i],
                             index: i,
                             onChat: () {
-                              context.pop();
                               context.push(
                                 AppRoutes.chat,
                                 extra: ChatScreenArgs(
@@ -206,11 +205,7 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen>
           color: AppColors.grey900,
         ),
       ),
-      leading: IconButton(
-        icon: const Icon(Icons.arrow_back_ios_new_rounded,
-            color: AppColors.grey700),
-        onPressed: () => context.pop(),
-      ),
+      leading: null,
       actions: [
         // Search toggle
         AnimatedSwitcher(

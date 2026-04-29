@@ -15,12 +15,13 @@ class _SlideData {
   const _SlideData({
     required this.title,
     required this.subtitle,
-    required this.painter,
+    required this.painterFactory,
     required this.accentColor,
   });
   final String title;
   final String subtitle;
-  final CustomPainter painter;
+  // Receives the 0→1→0 animation value so painters can float/pulse.
+  final CustomPainter Function(double anim) painterFactory;
   final Color accentColor;
 }
 
@@ -28,19 +29,19 @@ final _slides = [
   _SlideData(
     title: 'تواصل مع من تحب',
     subtitle: 'راسل أصدقاءك وعائلتك\nبكل سهولة ويسر',
-    painter: _ChatIllustrationPainter(),
+    painterFactory: _ChatIllustrationPainter.new,
     accentColor: AppColors.primary,
   ),
   _SlideData(
     title: 'رسائل آمنة ومشفرة',
     subtitle: 'محادثاتك محمية بتشفير\nمن طرف لطرف',
-    painter: _ShieldIllustrationPainter(),
+    painterFactory: _ShieldIllustrationPainter.new,
     accentColor: const Color(0xFF7C3AED),
   ),
   _SlideData(
     title: 'شارك لحظاتك',
     subtitle: 'أرسل صوراً ورسائل صوتية\nبضغطة واحدة',
-    painter: _MediaIllustrationPainter(),
+    painterFactory: _MediaIllustrationPainter.new,
     accentColor: const Color(0xFF0891B2),
   ),
 ];
@@ -224,7 +225,7 @@ class _SlidePage extends StatelessWidget {
             child: AnimatedBuilder(
               animation: animController,
               builder: (context, _) => CustomPaint(
-                painter: slide.painter,
+                painter: slide.painterFactory(animController.value),
               ),
             ),
           )
@@ -303,10 +304,16 @@ class _DotIndicator extends StatelessWidget {
 // ── Custom Painters (Illustrations) ───────────────────────────────────────
 
 class _ChatIllustrationPainter extends CustomPainter {
+  const _ChatIllustrationPainter(this.anim);
+  final double anim;
+
   @override
   void paint(Canvas canvas, Size size) {
     final cx = size.width / 2;
-    final cy = size.height / 2;
+    // Float: sine-wave offset using anim (0→1→0). Outgoing bubble rises,
+    // incoming falls, giving a breathing conversation effect.
+    final float = math.sin(anim * math.pi) * 7;
+    final cy = size.height / 2 - float * 0.4;
 
     // Background circle
     canvas.drawCircle(
@@ -329,10 +336,10 @@ class _ChatIllustrationPainter extends CustomPainter {
 
     final bubblePaint = Paint()..style = PaintingStyle.fill;
 
-    // Outgoing bubble (right)
+    // Outgoing bubble (right) — floats up with anim
     bubblePaint.color = AppColors.primary;
     final outBubble = RRect.fromRectAndCorners(
-      Rect.fromLTWH(cx - 10, cy - 55, 100, 46),
+      Rect.fromLTWH(cx - 10, cy - 55 - float, 100, 46),
       topLeft: const Radius.circular(18),
       topRight: const Radius.circular(18),
       bottomLeft: const Radius.circular(18),
@@ -342,9 +349,9 @@ class _ChatIllustrationPainter extends CustomPainter {
 
     // Bubble tail
     final tailPath = Path()
-      ..moveTo(cx + 88, cy - 9)
-      ..lineTo(cx + 110, cy - 2)
-      ..lineTo(cx + 90, cy - 20)
+      ..moveTo(cx + 88, cy - 9 - float)
+      ..lineTo(cx + 110, cy - 2 - float)
+      ..lineTo(cx + 90, cy - 20 - float)
       ..close();
     canvas.drawPath(tailPath, bubblePaint);
 
@@ -353,13 +360,15 @@ class _ChatIllustrationPainter extends CustomPainter {
       ..color = Colors.white.withOpacity(0.7)
       ..strokeWidth = 3
       ..strokeCap = StrokeCap.round;
-    canvas.drawLine(Offset(cx, cy - 43), Offset(cx + 78, cy - 43), linePaint);
-    canvas.drawLine(Offset(cx, cy - 30), Offset(cx + 58, cy - 30), linePaint);
+    canvas.drawLine(
+        Offset(cx, cy - 43 - float), Offset(cx + 78, cy - 43 - float), linePaint);
+    canvas.drawLine(
+        Offset(cx, cy - 30 - float), Offset(cx + 58, cy - 30 - float), linePaint);
 
-    // Incoming bubble (left)
+    // Incoming bubble (left) — floats opposite direction
     bubblePaint.color = Colors.white;
     final inBubble = RRect.fromRectAndCorners(
-      Rect.fromLTWH(cx - 108, cy + 5, 96, 46),
+      Rect.fromLTWH(cx - 108, cy + 5 + float * 0.6, 96, 46),
       topLeft: const Radius.circular(18),
       topRight: const Radius.circular(18),
       bottomLeft: const Radius.circular(4),
@@ -374,10 +383,11 @@ class _ChatIllustrationPainter extends CustomPainter {
     );
     canvas.drawRRect(inBubble, bubblePaint);
 
+    final dy2 = float * 0.6;
     final tailPath2 = Path()
-      ..moveTo(cx - 10, cy + 51)
-      ..lineTo(cx - 128, cy + 58)
-      ..lineTo(cx - 12, cy + 36)
+      ..moveTo(cx - 10, cy + 51 + dy2)
+      ..lineTo(cx - 128, cy + 58 + dy2)
+      ..lineTo(cx - 12, cy + 36 + dy2)
       ..close();
     canvas.drawPath(tailPath2, bubblePaint);
 
@@ -386,8 +396,10 @@ class _ChatIllustrationPainter extends CustomPainter {
       ..color = AppColors.grey300
       ..strokeWidth = 3
       ..strokeCap = StrokeCap.round;
-    canvas.drawLine(Offset(cx - 96, cy + 18), Offset(cx - 20, cy + 18), linePaint2);
-    canvas.drawLine(Offset(cx - 96, cy + 30), Offset(cx - 36, cy + 30), linePaint2);
+    canvas.drawLine(
+        Offset(cx - 96, cy + 18 + dy2), Offset(cx - 20, cy + 18 + dy2), linePaint2);
+    canvas.drawLine(
+        Offset(cx - 96, cy + 30 + dy2), Offset(cx - 36, cy + 30 + dy2), linePaint2);
 
     // Small decorative dots
     for (var i = 0; i < 5; i++) {
@@ -403,14 +415,19 @@ class _ChatIllustrationPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_ChatIllustrationPainter old) => false;
+  bool shouldRepaint(_ChatIllustrationPainter old) => old.anim != anim;
 }
 
 class _ShieldIllustrationPainter extends CustomPainter {
+  const _ShieldIllustrationPainter(this.anim);
+  final double anim;
+
   @override
   void paint(Canvas canvas, Size size) {
     final cx = size.width / 2;
-    final cy = size.height / 2;
+    // Shield floats up and down gently.
+    final float = math.sin(anim * math.pi) * 6;
+    final cy = size.height / 2 - float * 0.5;
 
     // Background circle
     canvas.drawCircle(
@@ -496,13 +513,15 @@ class _ShieldIllustrationPainter extends CustomPainter {
         ..strokeCap = StrokeCap.round,
     );
 
-    // Orbit rings
+    // Orbit rings — pulse opacity with anim
     for (var ring = 0; ring < 2; ring++) {
+      final baseOpacity = 0.06 - ring * 0.02;
       canvas.drawCircle(
         Offset(cx, cy),
         130 + ring * 16.0,
         Paint()
-          ..color = const Color(0xFF7C3AED).withOpacity(0.06 - ring * 0.02)
+          ..color = const Color(0xFF7C3AED)
+              .withOpacity(baseOpacity + anim * 0.04)
           ..style = PaintingStyle.stroke
           ..strokeWidth = 1.5,
       );
@@ -522,14 +541,19 @@ class _ShieldIllustrationPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_ShieldIllustrationPainter old) => false;
+  bool shouldRepaint(_ShieldIllustrationPainter old) => old.anim != anim;
 }
 
 class _MediaIllustrationPainter extends CustomPainter {
+  const _MediaIllustrationPainter(this.anim);
+  final double anim;
+
   @override
   void paint(Canvas canvas, Size size) {
     final cx = size.width / 2;
     final cy = size.height / 2;
+    // Photo cards float; wave bars pulse heights.
+    final float = math.sin(anim * math.pi) * 6;
 
     // Background circle
     canvas.drawCircle(
@@ -547,25 +571,27 @@ class _MediaIllustrationPainter extends CustomPainter {
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 18),
     );
 
-    // Photo frame 1 (back, slightly rotated)
+    // Photo frame 1 (back) — floats up
     _drawPhotoCard(
       canvas,
-      Rect.fromCenter(center: Offset(cx - 30, cy - 20), width: 90, height: 72),
+      Rect.fromCenter(
+          center: Offset(cx - 30, cy - 20 - float), width: 90, height: 72),
       -0.12,
       const Color(0xFF0891B2).withOpacity(0.6),
       isBack: true,
     );
 
-    // Photo frame 2 (front)
+    // Photo frame 2 (front) — floats slightly less
     _drawPhotoCard(
       canvas,
-      Rect.fromCenter(center: Offset(cx + 10, cy - 10), width: 90, height: 72),
+      Rect.fromCenter(
+          center: Offset(cx + 10, cy - 10 - float * 0.7), width: 90, height: 72),
       0.08,
       const Color(0xFF0891B2),
       isBack: false,
     );
 
-    // Voice wave bars
+    // Voice wave bars — each bar pulses with a phase offset from anim
     final waveColors = [
       const Color(0xFF0891B2).withOpacity(0.3),
       const Color(0xFF0891B2).withOpacity(0.6),
@@ -575,16 +601,19 @@ class _MediaIllustrationPainter extends CustomPainter {
       const Color(0xFF0891B2).withOpacity(0.6),
       const Color(0xFF0891B2).withOpacity(0.3),
     ];
-    final waveHeights = [16.0, 26.0, 38.0, 50.0, 38.0, 26.0, 16.0];
+    final baseHeights = [16.0, 26.0, 38.0, 50.0, 38.0, 26.0, 16.0];
     final waveStartX = cx - 50.0;
     for (var i = 0; i < 7; i++) {
+      final phase = (anim + i / 7.0) % 1.0;
+      final pulse = math.sin(phase * math.pi) * 10;
+      final h = (baseHeights[i] + pulse).clamp(8.0, 60.0);
       final barX = waveStartX + i * 16.0;
       canvas.drawRRect(
         RRect.fromRectAndRadius(
           Rect.fromCenter(
             center: Offset(barX, cy + 60),
             width: 8,
-            height: waveHeights[i],
+            height: h,
           ),
           const Radius.circular(4),
         ),
@@ -663,5 +692,5 @@ class _MediaIllustrationPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_MediaIllustrationPainter old) => false;
+  bool shouldRepaint(_MediaIllustrationPainter old) => old.anim != anim;
 }

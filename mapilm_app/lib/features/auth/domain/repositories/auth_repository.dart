@@ -2,7 +2,8 @@ import 'package:dartz/dartz.dart';
 import '../entities/user_entity.dart';
 
 abstract class AuthRepository {
-  Future<Either<String, String>> sendOtp(String phone);
+  Future<Either<String, String?>> sendOtp(String phone);
+  Future<Either<String, UserEntity>> completeAutoVerify();
   Future<Either<String, UserEntity>> verifyOtp({
     required String verificationId,
     required String otp,

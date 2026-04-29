@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -92,7 +94,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                   searchController: _searchController,
                   onSearchToggle: _toggleSearch,
                   onSearchChanged: (v) => setState(() => _searchQuery = v),
-                  onNewChat: () => context.push(AppRoutes.contacts),
+                  onNewChat: () => context.go(AppRoutes.contacts),
                   onProfileTap: () =>
                       context.push(AppRoutes.profile, extra: user?.uid),
                 ),
@@ -119,17 +121,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                     ],
                   ),
                 ),
-                // Bottom padding for floating nav
+                // Space for the shell's floating bottom nav
                 const SizedBox(height: 80),
               ],
             ),
-          ),
-          // Floating bottom nav
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: _FloatingBottomNav(currentIndex: 0),
           ),
         ],
       ),
@@ -145,7 +140,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       child: _isFabExtended
           ? FloatingActionButton.extended(
               heroTag: 'home_fab',
-              onPressed: () => context.push(AppRoutes.contacts),
+              onPressed: () => context.go(AppRoutes.contacts),
               backgroundColor: AppColors.primary,
               elevation: 6,
               extendedPadding: const EdgeInsets.symmetric(horizontal: 20),
@@ -168,7 +163,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               )
           : FloatingActionButton(
               heroTag: 'home_fab',
-              onPressed: () => context.push(AppRoutes.contacts),
+              onPressed: () => context.go(AppRoutes.contacts),
               backgroundColor: AppColors.primary,
               elevation: 6,
               shape: RoundedRectangleBorder(
@@ -231,7 +226,9 @@ class _HomeAppBar extends StatelessWidget {
                   onTap: onProfileTap,
                   child: AppAvatar(
                     imageUrl: null,
-                    name: user?.displayName ?? '?',
+                    name: user?.displayName?.isNotEmpty == true
+                        ? user!.displayName
+                        : user?.phoneNumber ?? '',
                     radius: 19,
                     showOnlineIndicator: true,
                     isOnline: true,
@@ -360,12 +357,23 @@ class _TabRowState extends State<_TabRow> {
   @override
   void initState() {
     super.initState();
-    widget.controller.addListener(() => setState(() {}));
+    // Listen to the continuous animation so the pill tracks swipe gestures
+    // in real time, not just on index changes.
+    widget.controller.animation!.addListener(_onAnimationTick);
   }
 
   @override
+  void dispose() {
+    widget.controller.animation!.removeListener(_onAnimationTick);
+    super.dispose();
+  }
+
+  void _onAnimationTick() => setState(() {});
+
+  @override
   Widget build(BuildContext context) {
-    final current = widget.controller.index;
+    // Continuous 0.0 → 1.0 value that follows the swipe gesture.
+    final anim = widget.controller.animation!.value.clamp(0.0, 1.0);
     return Container(
       color: Colors.white,
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
@@ -380,12 +388,12 @@ class _TabRowState extends State<_TabRow> {
           children: [
             _TabItem(
               label: AppStrings.conversations,
-              active: current == 0,
+              activeLevel: (1.0 - anim).clamp(0.0, 1.0),
               onTap: () => widget.controller.animateTo(0),
             ),
             _TabItem(
               label: 'المجموعات',
-              active: current == 1,
+              activeLevel: anim.clamp(0.0, 1.0),
               onTap: () => widget.controller.animateTo(1),
             ),
           ],
@@ -398,28 +406,34 @@ class _TabRowState extends State<_TabRow> {
 class _TabItem extends StatelessWidget {
   const _TabItem({
     required this.label,
-    required this.active,
+    required this.activeLevel,
     required this.onTap,
   });
   final String label;
-  final bool active;
+  // Continuous 0.0 (inactive) to 1.0 (fully active).
+  final double activeLevel;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    final bg = Color.lerp(Colors.transparent, AppColors.primary, activeLevel)!;
+    final textColor = Color.lerp(AppColors.grey500, Colors.white, activeLevel)!;
+    final weight =
+        activeLevel > 0.5 ? FontWeight.w700 : FontWeight.w500;
+    final showShadow = activeLevel > 0.3;
+
     return Expanded(
       child: GestureDetector(
         onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 220),
-          curve: Curves.easeOutCubic,
+        child: Container(
           decoration: BoxDecoration(
-            color: active ? AppColors.primary : Colors.transparent,
+            color: bg,
             borderRadius: BorderRadius.circular(18),
-            boxShadow: active
+            boxShadow: showShadow
                 ? [
                     BoxShadow(
-                      color: AppColors.primary.withOpacity(0.3),
+                      color: AppColors.primary
+                          .withOpacity(0.3 * activeLevel),
                       blurRadius: 8,
                       offset: const Offset(0, 2),
                     ),
@@ -427,14 +441,13 @@ class _TabItem extends StatelessWidget {
                 : null,
           ),
           child: Center(
-            child: AnimatedDefaultTextStyle(
-              duration: const Duration(milliseconds: 200),
+            child: Text(
+              label,
               style: AppTypography.labelMedium.copyWith(
-                color: active ? Colors.white : AppColors.grey500,
-                fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+                color: textColor,
+                fontWeight: weight,
                 fontSize: 13,
               ),
-              child: Text(label),
             ),
           ),
         ),
@@ -482,7 +495,7 @@ class _ConversationList extends ConsumerWidget {
         if (filtered.isEmpty) {
           return _EmptyConversations(
             isFiltered: searchQuery.isNotEmpty || filter != null,
-            onNewChat: () => context.push(AppRoutes.contacts),
+            onNewChat: () => context.go(AppRoutes.contacts),
           );
         }
 
@@ -502,7 +515,7 @@ class _ConversationList extends ConsumerWidget {
                     onArchive: () {/* archive */},
                     onDelete: () {/* delete */},
                   ).animate().fadeIn(
-                        delay: Duration(milliseconds: i * 35),
+                        delay: Duration(milliseconds: math.min(i, 10) * 35),
                         duration: 300.ms,
                       ),
                   if (i < filtered.length - 1)
@@ -636,156 +649,3 @@ class _ErrorState extends StatelessWidget {
   }
 }
 
-// ── Floating Bottom Navigation ─────────────────────────────────────────────
-
-class _FloatingBottomNav extends StatelessWidget {
-  const _FloatingBottomNav({required this.currentIndex});
-  final int currentIndex;
-
-  @override
-  Widget build(BuildContext context) {
-    final bottomPad = MediaQuery.of(context).padding.bottom;
-    return Padding(
-      padding: EdgeInsets.fromLTRB(16, 0, 16, 12 + bottomPad),
-      child: Container(
-        height: 64,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(32),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFF2038F5).withOpacity(0.14),
-              blurRadius: 30,
-              offset: const Offset(0, 8),
-            ),
-            BoxShadow(
-              color: Colors.black.withOpacity(0.08),
-              blurRadius: 12,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            _NavItem(
-              icon: Icons.chat_bubble_rounded,
-              inactiveIcon: Icons.chat_bubble_outline_rounded,
-              label: AppStrings.conversations,
-              active: currentIndex == 0,
-              onTap: () {},
-            ),
-            _NavItem(
-              icon: Icons.contacts_rounded,
-              inactiveIcon: Icons.contacts_outlined,
-              label: AppStrings.contacts,
-              active: currentIndex == 1,
-              onTap: () => context.push(AppRoutes.contacts),
-            ),
-            _NavItem(
-              icon: Icons.settings_rounded,
-              inactiveIcon: Icons.settings_outlined,
-              label: AppStrings.settings,
-              active: currentIndex == 2,
-              onTap: () => context.push(AppRoutes.settings),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _NavItem extends StatefulWidget {
-  const _NavItem({
-    required this.icon,
-    required this.inactiveIcon,
-    required this.label,
-    required this.active,
-    required this.onTap,
-  });
-  final IconData icon;
-  final IconData inactiveIcon;
-  final String label;
-  final bool active;
-  final VoidCallback onTap;
-
-  @override
-  State<_NavItem> createState() => _NavItemState();
-}
-
-class _NavItemState extends State<_NavItem>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _ctrl;
-  late final Animation<double> _scaleAnim;
-
-  @override
-  void initState() {
-    super.initState();
-    _ctrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 120),
-    );
-    _scaleAnim = Tween<double>(begin: 1.0, end: 0.88).animate(
-      CurvedAnimation(parent: _ctrl, curve: Curves.easeOut),
-    );
-  }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: GestureDetector(
-        onTapDown: (_) => _ctrl.forward(),
-        onTapUp: (_) {
-          _ctrl.reverse();
-          widget.onTap();
-        },
-        onTapCancel: () => _ctrl.reverse(),
-        child: ScaleTransition(
-          scale: _scaleAnim,
-          child: SizedBox(
-            height: 64,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  widget.active ? widget.icon : widget.inactiveIcon,
-                  size: 24,
-                  color: widget.active ? AppColors.primary : AppColors.grey400,
-                ),
-                const SizedBox(height: 3),
-                AnimatedDefaultTextStyle(
-                  duration: const Duration(milliseconds: 200),
-                  style: AppTypography.labelSmall.copyWith(
-                    color:
-                        widget.active ? AppColors.primary : AppColors.grey400,
-                    fontWeight:
-                        widget.active ? FontWeight.w700 : FontWeight.w400,
-                    fontSize: 10,
-                  ),
-                  child: Text(widget.label),
-                ),
-                const SizedBox(height: 2),
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 250),
-                  width: widget.active ? 20 : 0,
-                  height: 2.5,
-                  decoration: BoxDecoration(
-                    color: AppColors.primary,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}

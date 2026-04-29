@@ -188,11 +188,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             color: AppColors.grey900,
           ),
         ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded,
-              color: AppColors.grey700),
-          onPressed: () => context.pop(),
-        ),
+        leading: null,
       ),
       body: ListView(
         physics: const BouncingScrollPhysics(),

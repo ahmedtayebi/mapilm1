@@ -27,6 +27,7 @@ class _PremiumButtonWidgetState extends State<PremiumButtonWidget>
   late final AnimationController _shakeController;
   late final Animation<double> _shakeAnim;
   late final Animation<double> _scaleAnim;
+  int _loadingVersion = 0;
 
   @override
   void initState() {
@@ -54,6 +55,9 @@ class _PremiumButtonWidgetState extends State<PremiumButtonWidget>
   @override
   void didUpdateWidget(PremiumButtonWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (widget.isLoading != oldWidget.isLoading) {
+      _loadingVersion++;
+    }
     if (widget.triggerError && !oldWidget.triggerError) {
       _shakeController.forward(from: 0.0);
     }
@@ -112,17 +116,17 @@ class _PremiumButtonWidgetState extends State<PremiumButtonWidget>
             child: AnimatedSwitcher(
               duration: const Duration(milliseconds: 200),
               child: widget.isLoading
-                  ? const SizedBox(
-                      key: ValueKey('loader'),
+                  ? SizedBox(
+                      key: ValueKey('loader_$_loadingVersion'),
                       width: 26,
                       height: 26,
-                      child: CircularProgressIndicator(
+                      child: const CircularProgressIndicator(
                         color: Colors.white,
                         strokeWidth: 2.5,
                       ),
                     )
                   : Text(
-                      key: const ValueKey('label'),
+                      key: ValueKey('label_$_loadingVersion'),
                       widget.text,
                       style: AppTypography.titleMedium.copyWith(
                         color: Colors.white,

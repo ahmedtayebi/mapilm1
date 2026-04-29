@@ -48,6 +48,14 @@ class _PhoneScreenState extends ConsumerState<PhoneScreen> {
           extra: '${_country.code}${_phoneController.text.trim()}',
         );
       }
+      if (state is AuthSuccess) {
+        // Android instant-verify: skip OTP screen entirely.
+        if (state.user.isProfileComplete) {
+          context.go(AppRoutes.home);
+        } else {
+          context.go(AppRoutes.setupProfile);
+        }
+      }
       if (state is AuthError) {
         setState(() => _hasError = true);
         Future.delayed(const Duration(milliseconds: 600), () {

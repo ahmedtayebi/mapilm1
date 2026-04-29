@@ -9,12 +9,22 @@ class AuthRepositoryImpl implements AuthRepository {
   final AuthRemoteDatasource _datasource;
 
   @override
-  Future<Either<String, String>> sendOtp(String phone) async {
+  Future<Either<String, String?>> sendOtp(String phone) async {
     try {
       final verificationId = await _datasource.sendOtp(phone);
       return Right(verificationId);
     } on FirebaseAuthException catch (e) {
       return Left(e.message ?? 'فشل إرسال رمز التحقق');
+    } catch (e) {
+      return Left(e.toString());
+    }
+  }
+
+  @override
+  Future<Either<String, UserEntity>> completeAutoVerify() async {
+    try {
+      final user = await _datasource.completeAutoVerify();
+      return Right(user);
     } catch (e) {
       return Left(e.toString());
     }

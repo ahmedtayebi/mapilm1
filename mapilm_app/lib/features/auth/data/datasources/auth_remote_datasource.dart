@@ -1,14 +1,22 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import '../../../../core/network/dio_client.dart';
 import '../models/user_model.dart';
 
 abstract class AuthRemoteDatasource {
-  Future<String> sendOtp(String phone);
+  // Returns the verificationId, or null when Firebase auto-verified the phone
+  // (Android instant-verify): caller should skip OTP screen in that case.
+  Future<String?> sendOtp(String phone);
   Future<UserModel> verifyOtp({
     required String verificationId,
     required String otp,
   });
+  // Exchanges the already-signed-in Firebase user's token for a backend session.
+  // Call this after instant-verify (sendOtp returned null).
+  Future<UserModel> completeAutoVerify();
   Future<UserModel> setupProfile({
     required String name,
     String? bio,
@@ -22,30 +30,59 @@ class AuthRemoteDatasourceImpl implements AuthRemoteDatasource {
   final DioClient _client;
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  String? _verificationId;
+  String? _lastPhone;
+  int? _resendToken;
 
   @override
-  Future<String> sendOtp(String phone) async {
-    final completer = <String>[];
+  Future<String?> sendOtp(String phone) async {
+    if (kDebugMode) {
+      await _auth.setSettings(appVerificationDisabledForTesting: true);
+    }
+
+    // Reset token when switching phone numbers — resend tokens are bound to
+    // their original phone number and Firebase rejects them for other numbers.
+    if (phone != _lastPhone) {
+      _resendToken = null;
+      _lastPhone = phone;
+    }
+
+    final completer = Completer<String>();
+
     await _auth.verifyPhoneNumber(
       phoneNumber: phone,
+      forceResendingToken: _resendToken,
       verificationCompleted: (credential) async {
-        await _auth.signInWithCredential(credential);
+        // Android instant-verify: user is already signed in. Return null so
+        // the caller knows to skip the OTP screen entirely.
+        try {
+          await _auth.signInWithCredential(credential);
+          if (!completer.isCompleted) completer.complete(null);
+        } catch (e) {
+          if (!completer.isCompleted) {
+            completer.completeError(Exception(e.toString()));
+          }
+        }
       },
       verificationFailed: (e) {
-        throw Exception(e.message ?? 'فشل إرسال الرمز');
+        if (!completer.isCompleted) {
+          completer.completeError(Exception(e.message ?? 'فشل إرسال الرمز'));
+        }
       },
-      codeSent: (verificationId, _) {
-        _verificationId = verificationId;
-        completer.add(verificationId);
+      codeSent: (verificationId, resendToken) {
+        _resendToken = resendToken;
+        if (!completer.isCompleted) {
+          completer.complete(verificationId);
+        }
       },
-      codeAutoRetrievalTimeout: (_) {},
+      codeAutoRetrievalTimeout: (_) {
+        if (!completer.isCompleted) {
+          completer.completeError(Exception('انتهت مهلة التحقق'));
+        }
+      },
       timeout: const Duration(seconds: 60),
     );
-    if (completer.isEmpty) {
-      throw Exception('لم يُرسل رمز التحقق');
-    }
-    return completer.first;
+
+    return completer.future;
   }
 
   @override
@@ -59,6 +96,16 @@ class AuthRemoteDatasourceImpl implements AuthRemoteDatasource {
     );
     final result = await _auth.signInWithCredential(credential);
     final token = await result.user!.getIdToken();
+    final response = await _client.post<Map<String, dynamic>>(
+      '/auth/verify/',
+      data: {'firebase_token': token},
+    );
+    return UserModel.fromJson(response.data!);
+  }
+
+  @override
+  Future<UserModel> completeAutoVerify() async {
+    final token = await _auth.currentUser!.getIdToken();
     final response = await _client.post<Map<String, dynamic>>(
       '/auth/verify/',
       data: {'firebase_token': token},
