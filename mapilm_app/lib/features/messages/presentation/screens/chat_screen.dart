@@ -1,4 +1,6 @@
 import 'dart:math' as math;
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,9 +8,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_strings.dart';
-import '../../../../core/constants/app_typography.dart';
 import '../../../../shared/providers/auth_provider.dart';
-import '../../../../shared/widgets/app_avatar.dart';
+import '../../../../shared/widgets/presence_orb.dart';
 import '../../../../shared/widgets/shimmer_loader.dart';
 import '../../domain/entities/message_entity.dart';
 import '../providers/messages_provider.dart';
@@ -63,7 +64,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     if (showBtn != _showScrollBtn) {
       setState(() => _showScrollBtn = showBtn);
     }
-    // Load more when near end (list is reversed, so end = older messages)
     if (_scrollController.position.pixels >=
         _scrollController.position.maxScrollExtent - 300) {
       ref
@@ -91,7 +91,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         ref.watch(messagesProvider(widget.args.conversationId));
     final isTyping = ref.watch(typingProvider(widget.args.conversationId));
 
-    // Listen for new messages to show scroll button
     ref.listen<AsyncValue<List<MessageEntity>>>(
       messagesProvider(widget.args.conversationId),
       (prev, next) {
@@ -104,42 +103,42 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     );
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.pearl,
       body: Column(
         children: [
-          // Premium App Bar
           _ChatAppBar(args: widget.args, isTyping: isTyping),
-          // Chat content with background
           Expanded(
             child: Stack(
               children: [
-                // Background
                 const ChatBackground(),
-                // Messages
                 messagesAsync.when(
                   loading: () => const MessageShimmer(),
                   error: (_, __) => Center(
                     child: Text(
                       AppStrings.somethingWrong,
-                      style: AppTypography.bodyMedium,
+                      style: const TextStyle(
+                        fontFamily: 'Tajawal',
+                        color: AppColors.inkMuted,
+                      ),
                     ),
                   ),
                   data: (messages) => messages.isEmpty
-                      ? EmptyChatPlaceholder()
+                      ? const EmptyChatPlaceholder()
                       : MessageList(
                           messages: messages,
                           currentUserId: currentUserId,
                           scrollController: _scrollController,
                           isTyping: isTyping,
                           showSenderName: false,
-                          onReply: (msg) => setState(() => _replyTo = msg),
+                          onReply: (msg) =>
+                              setState(() => _replyTo = msg),
                           onDelete: (msg) => ref
-                              .read(messagesProvider(widget.args.conversationId)
+                              .read(messagesProvider(
+                                      widget.args.conversationId)
                                   .notifier)
                               .deleteMessage(msg.id),
                         ),
                 ),
-                // Scroll to bottom button
                 if (_showScrollBtn)
                   Positioned(
                     bottom: 12,
@@ -155,7 +154,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               ],
             ),
           ),
-          // Input area
           MessageInput(
             replyTo: _replyTo,
             onCancelReply: () => setState(() => _replyTo = null),
@@ -189,106 +187,112 @@ class _ChatAppBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final topPad = MediaQuery.of(context).padding.top;
-    return Container(
-      padding: EdgeInsets.only(top: topPad),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+    return ClipRect(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+        child: Container(
+          padding: EdgeInsets.only(top: topPad),
+          decoration: BoxDecoration(
+            color: AppColors.pearl.withOpacity(0.78),
+            border: Border(
+              bottom: BorderSide(
+                color: AppColors.glassBorder.withOpacity(0.6),
+              ),
+            ),
           ),
-        ],
-      ),
-      child: SizedBox(
-        height: 60,
-        child: Row(
-          children: [
-            // Back button
-            _BarBtn(
-              icon: Icons.arrow_back_ios_new_rounded,
-              onTap: () => context.pop(),
-            ),
-            // Avatar + name
-            AppAvatar(
-              imageUrl: args.participantAvatar,
-              name: args.participantName,
-              radius: 21,
-              showOnlineIndicator: true,
-              isOnline: !isTyping,
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
+          child: SizedBox(
+            height: 64,
+            child: Padding(
+              padding: const EdgeInsetsDirectional.fromSTEB(8, 0, 12, 0),
+              child: Row(
                 children: [
-                  Text(
-                    args.participantName,
-                    style: AppTypography.titleSmall.copyWith(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 15,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                  _BarIcon(
+                    icon: Icons.arrow_back_ios_new_rounded,
+                    onTap: () => context.pop(),
                   ),
-                  const SizedBox(height: 1),
-                  AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 200),
-                    child: isTyping
-                        ? _TypingStatus(key: const ValueKey('typing'))
-                        : Text(
-                            key: const ValueKey('online'),
-                            AppStrings.online,
-                            style: AppTypography.labelSmall.copyWith(
-                              color: AppColors.online,
-                              fontSize: 11,
-                            ),
+                  const SizedBox(width: 4),
+                  PresenceOrb(
+                    imageUrl: args.participantAvatar,
+                    name: args.participantName,
+                    radius: 20,
+                    isOnline: !isTyping,
+                    ringWidth: 2,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          args.participantName,
+                          style: const TextStyle(
+                            fontFamily: 'Tajawal',
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.ink,
+                            letterSpacing: -0.2,
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 2),
+                        AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 220),
+                          child: isTyping
+                              ? const _TypingStatus(key: ValueKey('typing'))
+                              : Text(
+                                  key: const ValueKey('online'),
+                                  AppStrings.online,
+                                  style: TextStyle(
+                                    fontFamily: 'Tajawal',
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.online,
+                                    letterSpacing: 0.2,
+                                  ),
+                                ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  _BarIcon(
+                    icon: Icons.videocam_outlined,
+                    onTap: () {},
+                  ),
+                  const SizedBox(width: 6),
+                  _BarIcon(
+                    icon: Icons.more_horiz_rounded,
+                    onTap: () {},
                   ),
                 ],
               ),
             ),
-            // Action buttons
-            _BarBtn(
-              icon: Icons.videocam_outlined,
-              onTap: () {},
-              color: AppColors.grey400,
-            ),
-            _BarBtn(
-              icon: Icons.more_vert_rounded,
-              onTap: () {},
-            ),
-          ],
+          ),
         ),
       ),
     );
   }
 }
 
-class _BarBtn extends StatelessWidget {
-  const _BarBtn({required this.icon, required this.onTap, this.color});
+class _BarIcon extends StatelessWidget {
+  const _BarIcon({required this.icon, required this.onTap});
   final IconData icon;
   final VoidCallback onTap;
-  final Color? color;
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(10),
-        child: SizedBox(
-          width: 44,
-          height: 60,
-          child: Icon(
-            icon,
-            size: 22,
-            color: color ?? AppColors.grey700,
-          ),
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.7),
+          borderRadius: BorderRadius.circular(13),
+          border: Border.all(color: AppColors.glassBorder),
         ),
+        child: Icon(icon, size: 18, color: AppColors.inkSoft),
       ),
     );
   }
@@ -302,12 +306,14 @@ class _TypingStatus extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(
+        const Text(
           AppStrings.typing,
-          style: AppTypography.labelSmall.copyWith(
-            color: AppColors.primary,
+          style: TextStyle(
+            fontFamily: 'Tajawal',
             fontSize: 11,
+            fontWeight: FontWeight.w700,
             fontStyle: FontStyle.italic,
+            color: AppColors.primary,
           ),
         ),
         const SizedBox(width: 4),
@@ -350,13 +356,14 @@ class _DotsRowState extends State<_DotsRow>
         children: List.generate(3, (i) {
           final t = (_ctrl.value + i * 0.25) % 1.0;
           final opacity = math.sin(t * math.pi).clamp(0.3, 1.0);
+          final colors = AppColors.auroraStops;
           return Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 1),
+            padding: const EdgeInsets.symmetric(horizontal: 1.2),
             child: Container(
               width: 4,
               height: 4,
               decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(opacity),
+                color: colors[i % colors.length].withOpacity(opacity),
                 shape: BoxShape.circle,
               ),
             ),
@@ -369,50 +376,108 @@ class _DotsRowState extends State<_DotsRow>
 
 // ── Chat Background ────────────────────────────────────────────────────────
 
+/// Public — also used by group_chat_screen.
 class ChatBackground extends StatelessWidget {
-  const ChatBackground();
+  const ChatBackground({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Positioned.fill(
-      child: CustomPaint(
-        painter: _DotPatternPainter(),
-        child: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Colors.white, Color(0xFFF4F6FF)],
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
+      child: IgnorePointer(
+        child: Stack(
+          children: [
+            Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [AppColors.pearl, Color(0xFFEDEAE0)],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                ),
+              ),
             ),
-          ),
+            // Aurora bloom upper-end.
+            const PositionedDirectional(
+              top: 40,
+              end: -120,
+              child: _Bloom(
+                size: 280,
+                colors: [
+                  Color(0x442038F5),
+                  Color(0x117C5CFF),
+                  Color(0x00000000),
+                ],
+              ),
+            ),
+            // Warm bloom lower-start.
+            const PositionedDirectional(
+              bottom: 80,
+              start: -140,
+              child: _Bloom(
+                size: 300,
+                colors: [
+                  Color(0x33FF6B9B),
+                  Color(0x22FF8A65),
+                  Color(0x00000000),
+                ],
+              ),
+            ),
+            // Faint grid lines for depth.
+            const Positioned.fill(child: _GridLines()),
+          ],
         ),
       ),
     );
   }
 }
 
-class _DotPatternPainter extends CustomPainter {
+class _Bloom extends StatelessWidget {
+  const _Bloom({required this.size, required this.colors});
+  final double size;
+  final List<Color> colors;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: RadialGradient(colors: colors, stops: const [0, 0.55, 1]),
+      ),
+    );
+  }
+}
+
+class _GridLines extends StatelessWidget {
+  const _GridLines();
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(painter: _GridPainter());
+  }
+}
+
+class _GridPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = const Color(0xFF2038F5).withOpacity(0.04)
-      ..style = PaintingStyle.fill;
-    const spacing = 24.0;
-    for (double x = 0; x < size.width; x += spacing) {
-      for (double y = 0; y < size.height; y += spacing) {
-        canvas.drawCircle(Offset(x, y), 1.5, paint);
-      }
+      ..color = AppColors.ink.withOpacity(0.025)
+      ..strokeWidth = 0.6;
+    const spacing = 32.0;
+    for (double y = 0; y < size.height; y += spacing) {
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
     }
   }
 
   @override
-  bool shouldRepaint(_DotPatternPainter old) => false;
+  bool shouldRepaint(_) => false;
 }
 
 // ── Message List ───────────────────────────────────────────────────────────
 
 class MessageList extends StatelessWidget {
   const MessageList({
+    super.key,
     required this.messages,
     required this.currentUserId,
     required this.scrollController,
@@ -437,32 +502,25 @@ class MessageList extends StatelessWidget {
     return ListView.builder(
       controller: scrollController,
       reverse: true,
-      padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+      padding: const EdgeInsets.fromLTRB(14, 16, 14, 16),
       itemCount: messages.length + (isTyping ? 1 : 0),
       itemBuilder: (ctx, i) {
-        // Typing indicator at top (index 0 in reversed list)
         if (isTyping && i == 0) {
           return const TypingIndicator()
               .animate()
               .fadeIn(duration: 200.ms)
               .slideX(begin: -0.05);
         }
-
         final msgIndex = isTyping ? i - 1 : i;
         final msg = messages[msgIndex];
         final isFromMe = msg.isFromMe(currentUserId);
 
-        // Date separator logic
         final showDate = msgIndex == messages.length - 1 ||
-            !_isSameDay(
-              msg.sentAt,
-              messages[msgIndex + 1].sentAt,
-            );
+            !_isSameDay(msg.sentAt, messages[msgIndex + 1].sentAt);
 
         return Column(
           children: [
-            if (showDate)
-              DateSeparator(date: msg.sentAt),
+            if (showDate) DateSeparator(date: msg.sentAt),
             MessageBubble(
               message: msg,
               isFromMe: isFromMe,
@@ -482,7 +540,11 @@ class MessageList extends StatelessWidget {
       a.year == b.year && a.month == b.month && a.day == b.day;
 }
 
+// ── Empty Placeholder ──────────────────────────────────────────────────────
+
 class EmptyChatPlaceholder extends StatelessWidget {
+  const EmptyChatPlaceholder({super.key});
+
   @override
   Widget build(BuildContext context) {
     return Center(
@@ -490,15 +552,23 @@ class EmptyChatPlaceholder extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
-            width: 80,
-            height: 80,
+            width: 86,
+            height: 86,
             decoration: BoxDecoration(
-              color: AppColors.primaryLighter,
               shape: BoxShape.circle,
+              gradient: LinearGradient(
+                colors: [
+                  AppColors.primary.withOpacity(0.12),
+                  AppColors.violet.withOpacity(0.12),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              border: Border.all(color: AppColors.glassBorder),
             ),
             child: const Icon(
-              Icons.waving_hand_rounded,
-              size: 38,
+              Icons.auto_awesome_rounded,
+              size: 36,
               color: AppColors.primary,
             ),
           )
@@ -510,9 +580,14 @@ class EmptyChatPlaceholder extends StatelessWidget {
               )
               .fadeIn(),
           const SizedBox(height: 16),
-          Text(
-            'ابدأ المحادثة!',
-            style: AppTypography.bodyMedium.copyWith(color: AppColors.grey400),
+          const Text(
+            'الفضاء مفتوح. أرسل أول رسالة.',
+            style: TextStyle(
+              fontFamily: 'Tajawal',
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: AppColors.ink,
+            ),
           ).animate().fadeIn(delay: 200.ms),
         ],
       ),
@@ -520,10 +595,11 @@ class EmptyChatPlaceholder extends StatelessWidget {
   }
 }
 
-// ── Scroll to Bottom Button ────────────────────────────────────────────────
+// ── Scroll-to-Bottom Pill ──────────────────────────────────────────────────
 
 class ScrollToBottomButton extends StatelessWidget {
   const ScrollToBottomButton({
+    super.key,
     required this.hasNewMessage,
     required this.onTap,
   });
@@ -535,15 +611,16 @@ class ScrollToBottomButton extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: AppColors.primary,
+          color: Colors.white.withOpacity(0.94),
           borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppColors.glassBorder),
           boxShadow: [
             BoxShadow(
-              color: AppColors.primary.withOpacity(0.4),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
+              color: AppColors.ink.withOpacity(0.10),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
             ),
           ],
         ),
@@ -551,19 +628,34 @@ class ScrollToBottomButton extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             if (hasNewMessage) ...[
-              const Text(
-                'رسالة جديدة',
-                style: TextStyle(
-                  fontFamily: 'Tajawal',
-                  color: Colors.white,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 3,
+                ),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: AppColors.auroraStops,
+                  ),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Text(
+                  'رسالة جديدة',
+                  style: TextStyle(
+                    fontFamily: 'Tajawal',
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
               ),
-              const SizedBox(width: 6),
+              const SizedBox(width: 8),
             ],
-            const Icon(Icons.keyboard_arrow_down_rounded,
-                color: Colors.white, size: 20),
+            const Icon(
+              Icons.keyboard_arrow_down_rounded,
+              color: AppColors.inkSoft,
+              size: 20,
+            ),
           ],
         ),
       ),

@@ -175,11 +175,8 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen>
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showAddContactSheet(context),
-        backgroundColor: AppColors.primary,
-        elevation: 4,
-        child: const Icon(Icons.person_add_rounded, color: Colors.white),
+      floatingActionButton: _AuroraFab(
+        onTap: () => _showAddContactSheet(context),
       )
           .animate()
           .scale(
@@ -228,6 +225,8 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen>
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      // Use root navigator so the sheet renders ABOVE MainShell's dock.
+      useRootNavigator: true,
       builder: (_) => _AddContactSheet(
         onAdd: (phone, nickname) {
           ref.read(contactsProvider.notifier).addContact(
@@ -235,6 +234,51 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen>
                 nickname: nickname,
               );
         },
+      ),
+    );
+  }
+}
+
+// ── Aurora FAB ─────────────────────────────────────────────────────────────
+//
+// Replaces the legacy flat-blue circular FAB. Aurora-gradient rounded square
+// (matches the home compose button + dock active pill).
+
+class _AuroraFab extends StatelessWidget {
+  const _AuroraFab({required this.onTap});
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 56,
+        height: 56,
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: AppColors.auroraStops,
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primary.withOpacity(0.40),
+              blurRadius: 18,
+              offset: const Offset(0, 8),
+            ),
+          ],
+          border: Border.all(
+            color: Colors.white.withOpacity(0.55),
+            width: 1.2,
+          ),
+        ),
+        child: const Icon(
+          Icons.person_add_rounded,
+          color: Colors.white,
+          size: 24,
+        ),
       ),
     );
   }

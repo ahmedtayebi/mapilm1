@@ -1,100 +1,256 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/constants/app_colors.dart';
-import '../../core/constants/app_typography.dart';
 
 class MainShell extends StatelessWidget {
   const MainShell({super.key, required this.navigationShell});
   final StatefulNavigationShell navigationShell;
 
-  // Nav bar total height used by child screens for bottom padding.
-  static const double kNavBarTotal = 88.0; // 64 height + 12 margin + 12 slack
+  // Dock height (visible bar) + 6px breathing slack above. Plus a 12px
+  // halo for the floating indicator dot that lives above the dock.
+  static const double kDockHeight = 68.0;
+  static const double kDockBreathing = 6.0;
+  static const double kDockHalo = 12.0;
+  static const double kNavBarTotal = kDockHeight + kDockBreathing + kDockHalo;
 
   @override
   Widget build(BuildContext context) {
-    // Extend MediaQuery bottom padding so Scaffold-based screens
-    // (SafeArea, FAB positioning, keyboard avoidance) all respect the nav bar.
     final mq = MediaQuery.of(context);
-    final extraBottom = kNavBarTotal + mq.padding.bottom;
-    return MediaQuery(
-      data: mq.copyWith(
-        padding: mq.padding.copyWith(bottom: extraBottom),
-      ),
-      child: Stack(
-        children: [
-          navigationShell,
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: _PersistentBottomNav(
-              currentIndex: navigationShell.currentIndex,
-              onTap: (i) => navigationShell.goBranch(
-                i,
-                initialLocation: i == navigationShell.currentIndex,
-              ),
+    // Extend BOTH padding.bottom and viewPadding.bottom so:
+    //  - SafeArea reserves space (padding)
+    //  - Scaffold.floatingActionButton positions above the dock (viewPadding)
+    final extraBottomPad = kNavBarTotal + mq.padding.bottom;
+    final extraViewPad = kNavBarTotal + mq.viewPadding.bottom;
+    return Stack(
+      children: [
+        // Only the page content sees the extended insets. The dock itself
+        // must read the REAL system insets to size its gesture-bar extension
+        // correctly, so it stays outside this MediaQuery.
+        MediaQuery(
+          data: mq.copyWith(
+            padding: mq.padding.copyWith(bottom: extraBottomPad),
+            viewPadding: mq.viewPadding.copyWith(bottom: extraViewPad),
+          ),
+          child: navigationShell,
+        ),
+        Positioned(
+          bottom: 0,
+          left: 0,
+          right: 0,
+          child: _AuroraDock(
+            currentIndex: navigationShell.currentIndex,
+            onTap: (i) => navigationShell.goBranch(
+              i,
+              initialLocation: i == navigationShell.currentIndex,
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
 
-class _PersistentBottomNav extends StatelessWidget {
-  const _PersistentBottomNav({
+// ── Aurora Dock ───────────────────────────────────────────────────────────
+//
+// Pinned to the bottom edge. Items always render in LTR order so that the
+// active pill (positioned via `Positioned.left`) lines up with the correct
+// branch under both LTR and RTL document directions. Icons are universal;
+// labels are short single tokens that render correctly in either direction.
+
+const _kDockItems = <_DockItem>[
+  _DockItem(
+    icon: Icons.bubble_chart_rounded,
+    inactiveIcon: Icons.bubble_chart_outlined,
+    label: 'المحادثات',
+  ),
+  _DockItem(
+    icon: Icons.diversity_3_rounded,
+    inactiveIcon: Icons.diversity_3_outlined,
+    label: 'الجهات',
+  ),
+  _DockItem(
+    icon: Icons.tune_rounded,
+    inactiveIcon: Icons.tune_outlined,
+    label: 'الإعدادات',
+  ),
+];
+
+class _DockItem {
+  const _DockItem({
+    required this.icon,
+    required this.inactiveIcon,
+    required this.label,
+  });
+  final IconData icon;
+  final IconData inactiveIcon;
+  final String label;
+}
+
+class _AuroraDock extends StatelessWidget {
+  const _AuroraDock({
     required this.currentIndex,
     required this.onTap,
   });
+
   final int currentIndex;
   final void Function(int) onTap;
 
   @override
   Widget build(BuildContext context) {
-    final bottomPad = MediaQuery.of(context).padding.bottom;
-    return Padding(
-      padding: EdgeInsets.fromLTRB(16, 0, 16, 12 + bottomPad),
+    final bottomPad = MediaQuery.of(context).viewPadding.bottom;
+    final extension = bottomPad > 0 ? bottomPad : 6.0;
+    const dockH = MainShell.kDockHeight;
+    const halo = MainShell.kDockHalo;
+    const sidePad = 10.0;
+
+    // Force LTR so `Positioned.left` aligns with the correct visual slot
+    // under both LTR and RTL.
+    return Directionality(
+      textDirection: TextDirection.ltr,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final fullW = constraints.maxWidth;
+          final innerW = fullW - sidePad * 2;
+          final itemW = innerW / _kDockItems.length;
+          return SizedBox(
+            height: halo + dockH + extension,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                // 1. Dock background — flush with screen bottom, rounded top.
+                //    Background color extends through the gesture-bar inset.
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  height: dockH + extension,
+                  child: ClipRRect(
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(28),
+                      topRight: Radius.circular(28),
+                    ),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.94),
+                          border: Border(
+                            top: BorderSide(
+                              color: Colors.white,
+                              width: 1.2,
+                            ),
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.ink.withOpacity(0.12),
+                              blurRadius: 26,
+                              offset: const Offset(0, -8),
+                            ),
+                            BoxShadow(
+                              color: AppColors.primary.withOpacity(0.06),
+                              blurRadius: 18,
+                              offset: const Offset(0, -2),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                // 2. Active aurora pill — positioned in outer stack coords so
+                //    it animates smoothly across slots.
+                AnimatedPositioned(
+                  duration: const Duration(milliseconds: 360),
+                  curve: Curves.easeOutCubic,
+                  left: sidePad + itemW * currentIndex,
+                  bottom: extension + 6,
+                  height: dockH - 12,
+                  width: itemW,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: AppColors.auroraStops,
+                          begin: Alignment.centerLeft,
+                          end: Alignment.centerRight,
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.primary.withOpacity(0.36),
+                            blurRadius: 14,
+                            offset: const Offset(0, 6),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                // 3. Buttons row — sits in the dock's icon zone, above the
+                //    gesture-bar extension.
+                Positioned(
+                  left: sidePad,
+                  right: sidePad,
+                  bottom: extension + 6,
+                  height: dockH - 12,
+                  child: Row(
+                    children: List.generate(_kDockItems.length, (i) {
+                      final active = i == currentIndex;
+                      return Expanded(
+                        child: _DockButton(
+                          item: _kDockItems[i],
+                          active: active,
+                          onTap: () {
+                            if (!active) HapticFeedback.selectionClick();
+                            onTap(i);
+                          },
+                        ),
+                      );
+                    }),
+                  ),
+                ),
+                // 4. Floating indicator bar — distinctive frame detail that
+                //    breaks the dock's top edge.
+                AnimatedPositioned(
+                  duration: const Duration(milliseconds: 360),
+                  curve: Curves.easeOutCubic,
+                  top: 0,
+                  left: sidePad + itemW * currentIndex + itemW / 2 - 14,
+                  width: 28,
+                  height: halo,
+                  child: const _IndicatorDot(),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _IndicatorDot extends StatelessWidget {
+  const _IndicatorDot();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
       child: Container(
-        height: 64,
+        height: 4,
+        width: 22,
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(32),
+          gradient: const LinearGradient(colors: AppColors.auroraStops),
+          borderRadius: BorderRadius.circular(2),
           boxShadow: [
             BoxShadow(
-              color: AppColors.primary.withOpacity(0.14),
-              blurRadius: 30,
-              offset: const Offset(0, 8),
-            ),
-            BoxShadow(
-              color: Colors.black.withOpacity(0.08),
-              blurRadius: 12,
+              color: AppColors.primary.withOpacity(0.4),
+              blurRadius: 8,
               offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            _NavItem(
-              icon: Icons.chat_bubble_rounded,
-              inactiveIcon: Icons.chat_bubble_outline_rounded,
-              label: 'المحادثات',
-              active: currentIndex == 0,
-              onTap: () => onTap(0),
-            ),
-            _NavItem(
-              icon: Icons.contacts_rounded,
-              inactiveIcon: Icons.contacts_outlined,
-              label: 'جهات الاتصال',
-              active: currentIndex == 1,
-              onTap: () => onTap(1),
-            ),
-            _NavItem(
-              icon: Icons.settings_rounded,
-              inactiveIcon: Icons.settings_outlined,
-              label: 'الإعدادات',
-              active: currentIndex == 2,
-              onTap: () => onTap(2),
             ),
           ],
         ),
@@ -103,37 +259,33 @@ class _PersistentBottomNav extends StatelessWidget {
   }
 }
 
-class _NavItem extends StatefulWidget {
-  const _NavItem({
-    required this.icon,
-    required this.inactiveIcon,
-    required this.label,
+class _DockButton extends StatefulWidget {
+  const _DockButton({
+    required this.item,
     required this.active,
     required this.onTap,
   });
-  final IconData icon;
-  final IconData inactiveIcon;
-  final String label;
+  final _DockItem item;
   final bool active;
   final VoidCallback onTap;
 
   @override
-  State<_NavItem> createState() => _NavItemState();
+  State<_DockButton> createState() => _DockButtonState();
 }
 
-class _NavItemState extends State<_NavItem>
+class _DockButtonState extends State<_DockButton>
     with SingleTickerProviderStateMixin {
   late final AnimationController _ctrl;
-  late final Animation<double> _scaleAnim;
+  late final Animation<double> _scale;
 
   @override
   void initState() {
     super.initState();
     _ctrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 120),
+      duration: const Duration(milliseconds: 130),
     );
-    _scaleAnim = Tween<double>(begin: 1.0, end: 0.88).animate(
+    _scale = Tween<double>(begin: 1.0, end: 0.92).animate(
       CurvedAnimation(parent: _ctrl, curve: Curves.easeOut),
     );
   }
@@ -146,56 +298,97 @@ class _NavItemState extends State<_NavItem>
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: GestureDetector(
-        onTapDown: (_) => _ctrl.forward(),
-        onTapUp: (_) {
-          _ctrl.reverse();
-          widget.onTap();
-        },
-        onTapCancel: () => _ctrl.reverse(),
-        child: ScaleTransition(
-          scale: _scaleAnim,
-          child: SizedBox(
-            height: 64,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 180),
-                  child: Icon(
-                    widget.active ? widget.icon : widget.inactiveIcon,
-                    key: ValueKey(widget.active),
-                    size: 24,
-                    color: widget.active ? AppColors.primary : AppColors.grey400,
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTapDown: (_) => _ctrl.forward(),
+      onTapUp: (_) {
+        _ctrl.reverse();
+        widget.onTap();
+      },
+      onTapCancel: () => _ctrl.reverse(),
+      child: ScaleTransition(
+        scale: _scale,
+        child: Center(
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 240),
+            switchInCurve: Curves.easeOutCubic,
+            switchOutCurve: Curves.easeInCubic,
+            transitionBuilder: (child, anim) =>
+                FadeTransition(opacity: anim, child: child),
+            child: widget.active
+                ? _ActiveContent(
+                    key: const ValueKey('active'),
+                    item: widget.item,
+                  )
+                : _InactiveContent(
+                    key: const ValueKey('inactive'),
+                    item: widget.item,
                   ),
-                ),
-                const SizedBox(height: 3),
-                AnimatedDefaultTextStyle(
-                  duration: const Duration(milliseconds: 200),
-                  style: AppTypography.labelSmall.copyWith(
-                    color: widget.active ? AppColors.primary : AppColors.grey400,
-                    fontWeight:
-                        widget.active ? FontWeight.w700 : FontWeight.w400,
-                    fontSize: 10,
-                  ),
-                  child: Text(widget.label),
-                ),
-                const SizedBox(height: 2),
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 250),
-                  width: widget.active ? 20 : 0,
-                  height: 2.5,
-                  decoration: BoxDecoration(
-                    color: AppColors.primary,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ],
-            ),
           ),
         ),
       ),
+    );
+  }
+}
+
+class _ActiveContent extends StatelessWidget {
+  const _ActiveContent({super.key, required this.item});
+  final _DockItem item;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(item.icon, color: Colors.white, size: 19),
+        const SizedBox(width: 7),
+        Flexible(
+          child: Text(
+            item.label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontFamily: 'Tajawal',
+              color: Colors.white,
+              fontSize: 12.5,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.1,
+              height: 1.0,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _InactiveContent extends StatelessWidget {
+  const _InactiveContent({super.key, required this.item});
+  final _DockItem item;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(item.inactiveIcon, color: AppColors.inkSoft, size: 22),
+        const SizedBox(height: 3),
+        Text(
+          item.label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            fontFamily: 'Tajawal',
+            color: AppColors.inkSoft,
+            fontSize: 10.5,
+            fontWeight: FontWeight.w700,
+            height: 1.0,
+            letterSpacing: 0.1,
+          ),
+        ),
+      ],
     );
   }
 }

@@ -63,4 +63,33 @@ abstract final class AppColors {
   static const Color online = Color(0xFF00C853);
   static const Color offline = Color(0xFF9BA5BB);
   static const Color away = Color(0xFFFF8F00);
+
+  // ── Aurora redesign (v2) ───────────────────────────────────────────────
+  // Warm pearl canvas, deep ink, multi-hue accent set used by the new
+  // home / chat / dock surfaces. Heritage `primary` (#2038F5) stays the hero.
+  static const Color pearl = Color(0xFFF6F4EE);
+  static const Color pearlDeep = Color(0xFFEDEAE0);
+  static const Color ink = Color(0xFF0A0F1F);
+  static const Color inkSoft = Color(0xFF222740);
+  static const Color inkMuted = Color(0xFF6E7392);
+
+  static const Color violet = Color(0xFF7C5CFF);
+  static const Color peach = Color(0xFFFF8A65);
+  static const Color mint = Color(0xFF22D3B3);
+  static const Color rose = Color(0xFFFF6B9B);
+  static const Color amber = Color(0xFFFFB547);
+
+  // Aurora gradient stops (electric blue → violet → rose) used for hero
+  // accents (send button, active dock pill, presence rings).
+  static const List<Color> auroraStops = [
+    Color(0xFF2038F5),
+    Color(0xFF6A4DFF),
+    Color(0xFFC846E8),
+    Color(0xFFFF6B9B),
+  ];
+
+  // Glass / edge tones for translucent cards.
+  static const Color glassBorder = Color(0x1A0A0F1F);
+  static const Color glassEdgeHi = Color(0x66FFFFFF);
+  static const Color glassFill = Color(0xCCFFFFFF);
 }

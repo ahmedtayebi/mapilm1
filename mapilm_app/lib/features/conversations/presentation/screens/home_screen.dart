@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:firebase_auth/firebase_auth.dart' show User;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -7,16 +8,19 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_colors.dart';
-import '../../../../core/constants/app_strings.dart';
-import '../../../../core/constants/app_typography.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../shared/providers/auth_provider.dart';
-import '../../../../shared/widgets/app_avatar.dart';
+import '../../../../shared/widgets/presence_orb.dart';
 import '../../../../shared/widgets/shimmer_loader.dart';
+import '../../../auth/domain/entities/user_entity.dart';
 import '../../domain/entities/conversation_entity.dart';
 import '../providers/conversations_provider.dart';
 import '../widgets/conversation_tile.dart';
 
+/// HomeScreen — Mapilm aurora redesign.
+///
+/// Big editorial greeting, ambient aurora gradient, "Active now" presence
+/// carousel, segmented filter pill, glass card conversation list.
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
@@ -24,46 +28,15 @@ class HomeScreen extends ConsumerStatefulWidget {
   ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends ConsumerState<HomeScreen>
-    with SingleTickerProviderStateMixin {
-  late final TabController _tabController;
+class _HomeScreenState extends ConsumerState<HomeScreen> {
   final _searchController = TextEditingController();
-  final _scrollController = ScrollController();
-
-  bool _isSearching = false;
   String _searchQuery = '';
-  bool _isFabExtended = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-    _scrollController.addListener(_onScroll);
-  }
+  _Segment _segment = _Segment.all;
 
   @override
   void dispose() {
-    _tabController.dispose();
     _searchController.dispose();
-    _scrollController.dispose();
     super.dispose();
-  }
-
-  void _onScroll() {
-    final shouldExtend = _scrollController.offset < 60;
-    if (shouldExtend != _isFabExtended) {
-      setState(() => _isFabExtended = shouldExtend);
-    }
-  }
-
-  void _toggleSearch() {
-    setState(() {
-      _isSearching = !_isSearching;
-      if (!_isSearching) {
-        _searchController.clear();
-        _searchQuery = '';
-      }
-    });
   }
 
   @override
@@ -72,246 +45,313 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     final conversations = ref.watch(conversationsProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: AppColors.pearl,
       body: Stack(
         children: [
-          NotificationListener<ScrollNotification>(
-            onNotification: (n) {
-              if (n is ScrollUpdateNotification) {
-                final shouldExtend = (n.metrics.pixels) < 60;
-                if (shouldExtend != _isFabExtended) {
-                  setState(() => _isFabExtended = shouldExtend);
-                }
-              }
-              return false;
-            },
+          const _AuroraBackdrop(),
+          SafeArea(
+            bottom: false,
             child: Column(
               children: [
-                // Custom App Bar
-                _HomeAppBar(
+                _Header(
                   user: user,
-                  isSearching: _isSearching,
-                  searchController: _searchController,
-                  onSearchToggle: _toggleSearch,
-                  onSearchChanged: (v) => setState(() => _searchQuery = v),
-                  onNewChat: () => context.go(AppRoutes.contacts),
-                  onProfileTap: () =>
+                  onAvatarTap: () =>
                       context.push(AppRoutes.profile, extra: user?.uid),
+                  onCompose: () => context.go(AppRoutes.contacts),
+                  searchController: _searchController,
+                  onSearchChanged: (v) => setState(() => _searchQuery = v),
                 ),
-                // Custom Tab Row
-                _TabRow(controller: _tabController),
-                // Content
+                _ActiveNowStrip(conversations: conversations),
+                _SegmentBar(
+                  selected: _segment,
+                  onChanged: (s) => setState(() => _segment = s),
+                ),
                 Expanded(
-                  child: TabBarView(
-                    controller: _tabController,
-                    physics: const BouncingScrollPhysics(),
-                    children: [
-                      _ConversationList(
-                        key: const PageStorageKey('all'),
-                        conversationsAsync: conversations,
-                        filter: null,
-                        searchQuery: _searchQuery,
-                      ),
-                      _ConversationList(
-                        key: const PageStorageKey('groups'),
-                        conversationsAsync: conversations,
-                        filter: ConversationType.group,
-                        searchQuery: _searchQuery,
-                      ),
-                    ],
+                  child: _List(
+                    conversationsAsync: conversations,
+                    segment: _segment,
+                    searchQuery: _searchQuery,
+                    onNewChat: () => context.go(AppRoutes.contacts),
                   ),
                 ),
-                // Space for the shell's floating bottom nav
-                const SizedBox(height: 80),
               ],
             ),
           ),
         ],
       ),
-      floatingActionButton: _buildFab(),
-      floatingActionButtonLocation: FloatingActionButtonLocation.startFloat,
-    );
-  }
-
-  Widget _buildFab() {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeOutCubic,
-      child: _isFabExtended
-          ? FloatingActionButton.extended(
-              heroTag: 'home_fab',
-              onPressed: () => context.go(AppRoutes.contacts),
-              backgroundColor: AppColors.primary,
-              elevation: 6,
-              extendedPadding: const EdgeInsets.symmetric(horizontal: 20),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-              icon: const Icon(Icons.chat_bubble_rounded,
-                  color: Colors.white, size: 20),
-              label: Text(
-                AppStrings.newChat,
-                style: AppTypography.labelLarge.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ).animate().scale(
-                begin: const Offset(0.8, 0.8),
-                delay: 400.ms,
-                curve: Curves.easeOutBack,
-              )
-          : FloatingActionButton(
-              heroTag: 'home_fab',
-              onPressed: () => context.go(AppRoutes.contacts),
-              backgroundColor: AppColors.primary,
-              elevation: 6,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(18),
-              ),
-              child: const Icon(Icons.chat_bubble_rounded,
-                  color: Colors.white, size: 22),
-            ),
     );
   }
 }
 
-// ── Custom App Bar ─────────────────────────────────────────────────────────
+enum _Segment { all, groups, pinned }
 
-class _HomeAppBar extends StatelessWidget {
-  const _HomeAppBar({
-    required this.user,
-    required this.isSearching,
-    required this.searchController,
-    required this.onSearchToggle,
-    required this.onSearchChanged,
-    required this.onNewChat,
-    required this.onProfileTap,
-  });
+// ── Backdrop ──────────────────────────────────────────────────────────────
 
-  final dynamic user;
-  final bool isSearching;
-  final TextEditingController searchController;
-  final VoidCallback onSearchToggle;
-  final ValueChanged<String> onSearchChanged;
-  final VoidCallback onNewChat;
-  final VoidCallback onProfileTap;
+class _AuroraBackdrop extends StatelessWidget {
+  const _AuroraBackdrop();
 
   @override
   Widget build(BuildContext context) {
-    final topPad = MediaQuery.of(context).padding.top;
-    return Container(
-      color: Colors.white,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          SizedBox(height: topPad),
-          Container(
-            height: 60,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Color(0x0A000000),
-                  blurRadius: 8,
-                  offset: Offset(0, 2),
-                ),
-              ],
+    return Positioned.fill(
+      child: IgnorePointer(
+        child: Stack(
+          children: [
+            // Top-end aurora bloom.
+            PositionedDirectional(
+              top: -120,
+              end: -100,
+              child: _Bloom(
+                size: 360,
+                colors: const [
+                  Color(0x552038F5),
+                  Color(0x117C5CFF),
+                  Color(0x00000000),
+                ],
+              ),
             ),
-            child: Row(
-              children: [
-                // User avatar (tap → profile)
-                GestureDetector(
-                  onTap: onProfileTap,
-                  child: AppAvatar(
-                    imageUrl: null,
-                    name: user?.displayName?.isNotEmpty == true
-                        ? user!.displayName
-                        : user?.phoneNumber ?? '',
-                    radius: 19,
-                    showOnlineIndicator: true,
-                    isOnline: true,
-                  ),
+            // Lower-start warm bloom.
+            PositionedDirectional(
+              top: 220,
+              start: -160,
+              child: _Bloom(
+                size: 320,
+                colors: const [
+                  Color(0x33FF8A65),
+                  Color(0x11FF6B9B),
+                  Color(0x00000000),
+                ],
+              ),
+            ),
+            // Subtle grain via dotted gradient overlay.
+            const Positioned.fill(child: _Grain()),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _Bloom extends StatelessWidget {
+  const _Bloom({required this.size, required this.colors});
+  final double size;
+  final List<Color> colors;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: RadialGradient(colors: colors, stops: const [0, 0.55, 1]),
+      ),
+    );
+  }
+}
+
+class _Grain extends StatelessWidget {
+  const _Grain();
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(painter: _GrainPainter());
+  }
+}
+
+class _GrainPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..color = AppColors.ink.withOpacity(0.025);
+    final rng = math.Random(42);
+    for (var i = 0; i < 220; i++) {
+      final x = rng.nextDouble() * size.width;
+      final y = rng.nextDouble() * size.height;
+      canvas.drawCircle(Offset(x, y), 0.6, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_) => false;
+}
+
+// ── Header ────────────────────────────────────────────────────────────────
+
+class _Header extends StatelessWidget {
+  const _Header({
+    required this.user,
+    required this.onAvatarTap,
+    required this.onCompose,
+    required this.searchController,
+    required this.onSearchChanged,
+  });
+
+  final User? user;
+  final VoidCallback onAvatarTap;
+  final VoidCallback onCompose;
+  final TextEditingController searchController;
+  final ValueChanged<String> onSearchChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final greeting = _greeting();
+    final displayName = user?.displayName ?? '';
+    final fallback = user?.phoneNumber ?? '';
+    final firstName =
+        displayName.isNotEmpty ? displayName.split(' ').first : '';
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              GestureDetector(
+                onTap: onAvatarTap,
+                child: PresenceOrb(
+                  imageUrl: user?.photoURL,
+                  name: displayName.isNotEmpty ? displayName : fallback,
+                  radius: 22,
+                  isOnline: true,
+                  ringWidth: 2.2,
                 ),
-                // Center logo
-                Expanded(
-                  child: Center(
-                    child: Text(
-                      'Mapilm',
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      greeting,
                       style: TextStyle(
+                        fontFamily: 'Tajawal',
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.inkMuted,
+                        letterSpacing: 0.4,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      firstName.isEmpty ? 'مرحباً' : firstName,
+                      style: const TextStyle(
                         fontFamily: 'Tajawal',
                         fontSize: 22,
                         fontWeight: FontWeight.w800,
-                        color: AppColors.primary,
-                        letterSpacing: 0.5,
+                        color: AppColors.ink,
+                        letterSpacing: -0.4,
+                        height: 1.1,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                  ),
+                  ],
                 ),
-                // Action icons
-                _AppBarIcon(
-                  icon: isSearching
-                      ? Icons.close_rounded
-                      : Icons.search_rounded,
-                  onTap: onSearchToggle,
+              ),
+              _CompactIconButton(
+                icon: Icons.notifications_none_rounded,
+                onTap: () {},
+                badge: true,
+              ),
+              const SizedBox(width: 8),
+              _ComposeButton(onTap: onCompose),
+            ],
+          ).animate().fadeIn(duration: 360.ms).slideY(
+                begin: -0.15,
+                duration: 380.ms,
+                curve: Curves.easeOutCubic,
+              ),
+          const SizedBox(height: 16),
+          _SearchPill(
+            controller: searchController,
+            onChanged: onSearchChanged,
+          ).animate().fadeIn(delay: 80.ms, duration: 380.ms).slideY(
+                begin: 0.2,
+                delay: 80.ms,
+                duration: 380.ms,
+                curve: Curves.easeOutCubic,
+              ),
+        ],
+      ),
+    );
+  }
+
+  String _greeting() {
+    final h = DateTime.now().hour;
+    if (h < 12) return 'صباح الخير ·';
+    if (h < 18) return 'مساء النور ·';
+    return 'مساء الخير ·';
+  }
+}
+
+class _SearchPill extends StatelessWidget {
+  const _SearchPill({required this.controller, required this.onChanged});
+  final TextEditingController controller;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 50,
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.85),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.glassBorder),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.ink.withOpacity(0.04),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      padding: const EdgeInsetsDirectional.fromSTEB(14, 0, 6, 0),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.search_rounded,
+            size: 20,
+            color: AppColors.inkMuted,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: TextField(
+              controller: controller,
+              textDirection: TextDirection.rtl,
+              onChanged: onChanged,
+              cursorColor: AppColors.primary,
+              style: const TextStyle(
+                fontFamily: 'Tajawal',
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: AppColors.ink,
+              ),
+              decoration: InputDecoration(
+                hintText: 'ابحث عن شخص أو مجموعة',
+                hintStyle: TextStyle(
+                  fontFamily: 'Tajawal',
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.inkMuted.withOpacity(0.85),
                 ),
-                const SizedBox(width: 4),
-                _AppBarIcon(
-                  icon: Icons.edit_square,
-                  onTap: onNewChat,
-                ),
-              ],
+                isDense: true,
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+              ),
             ),
           ),
-          // Animated search bar
-          AnimatedSize(
-            duration: const Duration(milliseconds: 250),
-            curve: Curves.easeOutCubic,
-            child: isSearching
-                ? Container(
-                    color: Colors.white,
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
-                    child: Container(
-                      height: 42,
-                      decoration: BoxDecoration(
-                        color: AppColors.grey100,
-                        borderRadius: BorderRadius.circular(22),
-                      ),
-                      child: TextField(
-                        controller: searchController,
-                        autofocus: true,
-                        style: AppTypography.bodyMedium,
-                        textDirection: TextDirection.rtl,
-                        cursorColor: AppColors.primary,
-                        onChanged: onSearchChanged,
-                        decoration: InputDecoration(
-                          hintText: 'ابحث عن محادثة...',
-                          hintStyle: AppTypography.bodyMedium.copyWith(
-                            color: AppColors.grey400,
-                          ),
-                          border: InputBorder.none,
-                          enabledBorder: InputBorder.none,
-                          focusedBorder: InputBorder.none,
-                          filled: false,
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 10,
-                          ),
-                          prefixIcon: const Icon(
-                            Icons.search_rounded,
-                            size: 18,
-                            color: AppColors.grey400,
-                          ),
-                          prefixIconConstraints: const BoxConstraints(
-                            minWidth: 40,
-                            minHeight: 40,
-                          ),
-                        ),
-                      ),
-                    ),
-                  )
-                : const SizedBox.shrink(),
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: AppColors.ink.withOpacity(0.045),
+              borderRadius: BorderRadius.circular(13),
+            ),
+            child: const Icon(
+              Icons.tune_rounded,
+              size: 18,
+              color: AppColors.inkSoft,
+            ),
           ),
         ],
       ),
@@ -319,82 +359,325 @@ class _HomeAppBar extends StatelessWidget {
   }
 }
 
-class _AppBarIcon extends StatelessWidget {
-  const _AppBarIcon({required this.icon, required this.onTap});
+class _CompactIconButton extends StatelessWidget {
+  const _CompactIconButton({
+    required this.icon,
+    required this.onTap,
+    this.badge = false,
+  });
   final IconData icon;
+  final VoidCallback onTap;
+  final bool badge;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.92),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: AppColors.glassBorder),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.ink.withOpacity(0.04),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Icon(icon, size: 19, color: AppColors.inkSoft),
+          ),
+          if (badge)
+            Positioned(
+              top: -2,
+              right: -2,
+              child: Container(
+                width: 10,
+                height: 10,
+                decoration: BoxDecoration(
+                  color: AppColors.rose,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: AppColors.pearl, width: 2),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ComposeButton extends StatelessWidget {
+  const _ComposeButton({required this.onTap});
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      borderRadius: BorderRadius.circular(10),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(10),
-        child: Container(
-          width: 40,
-          height: 40,
-          alignment: Alignment.center,
-          child: Icon(icon, color: AppColors.primary, size: 22),
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.lightImpact();
+        onTap();
+      },
+      child: Container(
+        width: 42,
+        height: 42,
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: AppColors.auroraStops,
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primary.withOpacity(0.32),
+              blurRadius: 14,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: const Icon(
+          Icons.add_rounded,
+          color: Colors.white,
+          size: 22,
         ),
       ),
     );
   }
 }
 
-// ── Custom Tab Row ─────────────────────────────────────────────────────────
+// ── Active Now ────────────────────────────────────────────────────────────
 
-class _TabRow extends StatefulWidget {
-  const _TabRow({required this.controller});
-  final TabController controller;
-
-  @override
-  State<_TabRow> createState() => _TabRowState();
-}
-
-class _TabRowState extends State<_TabRow> {
-  @override
-  void initState() {
-    super.initState();
-    // Listen to the continuous animation so the pill tracks swipe gestures
-    // in real time, not just on index changes.
-    widget.controller.animation!.addListener(_onAnimationTick);
-  }
-
-  @override
-  void dispose() {
-    widget.controller.animation!.removeListener(_onAnimationTick);
-    super.dispose();
-  }
-
-  void _onAnimationTick() => setState(() {});
+class _ActiveNowStrip extends StatelessWidget {
+  const _ActiveNowStrip({required this.conversations});
+  final AsyncValue<List<ConversationEntity>> conversations;
 
   @override
   Widget build(BuildContext context) {
-    // Continuous 0.0 → 1.0 value that follows the swipe gesture.
-    final anim = widget.controller.animation!.value.clamp(0.0, 1.0);
-    return Container(
-      color: Colors.white,
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-      child: Container(
-        height: 38,
-        padding: const EdgeInsets.all(3),
+    final list = conversations.valueOrNull ?? const [];
+    final currentUserId = '';
+    final online = <UserEntity>{};
+    for (final c in list) {
+      for (final p in c.participants) {
+        if (p.id != currentUserId && p.isOnline) online.add(p);
+      }
+    }
+    if (online.isEmpty) return const SizedBox(height: 8);
+    final users = online.toList();
+
+    return SizedBox(
+      height: 96,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(20, 14, 20, 8),
+        itemCount: users.length + 1,
+        separatorBuilder: (_, __) => const SizedBox(width: 14),
+        itemBuilder: (_, i) {
+          if (i == 0) return const _StoryAddTile();
+          final u = users[i - 1];
+          return _StoryTile(user: u)
+              .animate()
+              .fadeIn(
+                delay: Duration(milliseconds: math.min(i, 8) * 40),
+                duration: 280.ms,
+              )
+              .slideX(begin: 0.2, duration: 320.ms);
+        },
+      ),
+    );
+  }
+}
+
+class _StoryAddTile extends StatelessWidget {
+  const _StoryAddTile();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Container(
+          width: 60,
+          height: 60,
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.7),
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: AppColors.primary.withOpacity(0.3),
+              width: 1.5,
+              style: BorderStyle.solid,
+            ),
+          ),
+          child: const Icon(
+            Icons.add_rounded,
+            color: AppColors.primary,
+            size: 24,
+          ),
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          'حالتك',
+          style: TextStyle(
+            fontFamily: 'Tajawal',
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            color: AppColors.inkMuted,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _StoryTile extends StatelessWidget {
+  const _StoryTile({required this.user});
+  final UserEntity user;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 64,
+      child: Column(
+        children: [
+          PresenceOrb(
+            imageUrl: user.avatarUrl,
+            name: user.name ?? user.phone,
+            radius: 26,
+            isOnline: user.isOnline,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            (user.name ?? user.phone).split(' ').first,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontFamily: 'Tajawal',
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: AppColors.inkSoft,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Segment Bar ───────────────────────────────────────────────────────────
+
+class _SegmentBar extends StatelessWidget {
+  const _SegmentBar({required this.selected, required this.onChanged});
+  final _Segment selected;
+  final ValueChanged<_Segment> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 6, 20, 10),
+      child: Row(
+        children: [
+          _SegChip(
+            label: 'الكل',
+            active: selected == _Segment.all,
+            onTap: () => onChanged(_Segment.all),
+          ),
+          const SizedBox(width: 8),
+          _SegChip(
+            label: 'المجموعات',
+            active: selected == _Segment.groups,
+            onTap: () => onChanged(_Segment.groups),
+            icon: Icons.diversity_3_rounded,
+          ),
+          const SizedBox(width: 8),
+          _SegChip(
+            label: 'المثبّت',
+            active: selected == _Segment.pinned,
+            onTap: () => onChanged(_Segment.pinned),
+            icon: Icons.push_pin_rounded,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SegChip extends StatelessWidget {
+  const _SegChip({
+    required this.label,
+    required this.active,
+    required this.onTap,
+    this.icon,
+  });
+  final String label;
+  final bool active;
+  final VoidCallback onTap;
+  final IconData? icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        onTap();
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOutCubic,
+        padding: EdgeInsets.symmetric(
+          horizontal: icon != null ? 14 : 16,
+          vertical: 9,
+        ),
         decoration: BoxDecoration(
-          color: AppColors.grey100,
-          borderRadius: BorderRadius.circular(22),
+          gradient: active
+              ? const LinearGradient(
+                  colors: AppColors.auroraStops,
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                )
+              : null,
+          color: active ? null : Colors.white.withOpacity(0.7),
+          borderRadius: BorderRadius.circular(13),
+          border: Border.all(
+            color: active
+                ? Colors.transparent
+                : AppColors.glassBorder,
+          ),
+          boxShadow: active
+              ? [
+                  BoxShadow(
+                    color: AppColors.primary.withOpacity(0.28),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ]
+              : null,
         ),
         child: Row(
           children: [
-            _TabItem(
-              label: AppStrings.conversations,
-              activeLevel: (1.0 - anim).clamp(0.0, 1.0),
-              onTap: () => widget.controller.animateTo(0),
-            ),
-            _TabItem(
-              label: 'المجموعات',
-              activeLevel: anim.clamp(0.0, 1.0),
-              onTap: () => widget.controller.animateTo(1),
+            if (icon != null) ...[
+              Icon(
+                icon,
+                size: 14,
+                color: active ? Colors.white : AppColors.inkMuted,
+              ),
+              const SizedBox(width: 6),
+            ],
+            Text(
+              label,
+              style: TextStyle(
+                fontFamily: 'Tajawal',
+                fontSize: 12.5,
+                fontWeight: FontWeight.w700,
+                color: active ? Colors.white : AppColors.inkSoft,
+                letterSpacing: 0.1,
+              ),
             ),
           ],
         ),
@@ -403,72 +686,20 @@ class _TabRowState extends State<_TabRow> {
   }
 }
 
-class _TabItem extends StatelessWidget {
-  const _TabItem({
-    required this.label,
-    required this.activeLevel,
-    required this.onTap,
-  });
-  final String label;
-  // Continuous 0.0 (inactive) to 1.0 (fully active).
-  final double activeLevel;
-  final VoidCallback onTap;
+// ── List ──────────────────────────────────────────────────────────────────
 
-  @override
-  Widget build(BuildContext context) {
-    final bg = Color.lerp(Colors.transparent, AppColors.primary, activeLevel)!;
-    final textColor = Color.lerp(AppColors.grey500, Colors.white, activeLevel)!;
-    final weight =
-        activeLevel > 0.5 ? FontWeight.w700 : FontWeight.w500;
-    final showShadow = activeLevel > 0.3;
-
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          decoration: BoxDecoration(
-            color: bg,
-            borderRadius: BorderRadius.circular(18),
-            boxShadow: showShadow
-                ? [
-                    BoxShadow(
-                      color: AppColors.primary
-                          .withOpacity(0.3 * activeLevel),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ]
-                : null,
-          ),
-          child: Center(
-            child: Text(
-              label,
-              style: AppTypography.labelMedium.copyWith(
-                color: textColor,
-                fontWeight: weight,
-                fontSize: 13,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ── Conversation List ──────────────────────────────────────────────────────
-
-class _ConversationList extends ConsumerWidget {
-  const _ConversationList({
-    super.key,
+class _List extends ConsumerWidget {
+  const _List({
     required this.conversationsAsync,
-    required this.filter,
+    required this.segment,
     required this.searchQuery,
+    required this.onNewChat,
   });
 
   final AsyncValue<List<ConversationEntity>> conversationsAsync;
-  final ConversationType? filter;
+  final _Segment segment;
   final String searchQuery;
+  final VoidCallback onNewChat;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -478,24 +709,31 @@ class _ConversationList extends ConsumerWidget {
         onRetry: () => ref.read(conversationsProvider.notifier).refresh(),
       ),
       data: (conversations) {
-        var filtered = filter != null
-            ? conversations.where((c) => c.type == filter).toList()
-            : conversations;
+        var filtered = conversations.where((c) {
+          switch (segment) {
+            case _Segment.all:
+              return true;
+            case _Segment.groups:
+              return c.isGroup;
+            case _Segment.pinned:
+              return c.isPinned;
+          }
+        }).toList();
 
         if (searchQuery.isNotEmpty) {
           final q = searchQuery.toLowerCase();
           filtered = filtered
               .where((c) =>
                   (c.name?.toLowerCase().contains(q) ?? false) ||
-                  c.participants.any((p) =>
-                      (p.name?.toLowerCase().contains(q) ?? false)))
+                  c.participants.any(
+                      (p) => (p.name?.toLowerCase().contains(q) ?? false)))
               .toList();
         }
 
         if (filtered.isEmpty) {
-          return _EmptyConversations(
-            isFiltered: searchQuery.isNotEmpty || filter != null,
-            onNewChat: () => context.go(AppRoutes.contacts),
+          return _EmptyState(
+            isFiltered: searchQuery.isNotEmpty || segment != _Segment.all,
+            onNewChat: onNewChat,
           );
         }
 
@@ -504,29 +742,29 @@ class _ConversationList extends ConsumerWidget {
           backgroundColor: Colors.white,
           onRefresh: () => ref.read(conversationsProvider.notifier).refresh(),
           child: ListView.builder(
-            padding: const EdgeInsets.only(top: 4, bottom: 16),
+            padding: const EdgeInsets.only(top: 4, bottom: 24),
+            physics: const BouncingScrollPhysics(
+              parent: AlwaysScrollableScrollPhysics(),
+            ),
             itemCount: filtered.length,
-            itemBuilder: (ctx, i) {
+            itemBuilder: (_, i) {
               final conv = filtered[i];
-              return Column(
-                children: [
-                  ConversationTile(
-                    conversation: conv,
-                    onArchive: () {/* archive */},
-                    onDelete: () {/* delete */},
-                  ).animate().fadeIn(
-                        delay: Duration(milliseconds: math.min(i, 10) * 35),
-                        duration: 300.ms,
-                      ),
-                  if (i < filtered.length - 1)
-                    const Divider(
-                      height: 1,
-                      indent: 72,
-                      endIndent: 16,
-                      color: AppColors.divider,
-                    ),
-                ],
-              );
+              return ConversationTile(
+                conversation: conv,
+                onArchive: () {/* archive */},
+                onDelete: () {/* delete */},
+              )
+                  .animate()
+                  .fadeIn(
+                    delay: Duration(milliseconds: math.min(i, 10) * 30),
+                    duration: 280.ms,
+                  )
+                  .slideY(
+                    begin: 0.08,
+                    delay: Duration(milliseconds: math.min(i, 10) * 30),
+                    duration: 320.ms,
+                    curve: Curves.easeOutCubic,
+                  );
             },
           ),
         );
@@ -535,13 +773,10 @@ class _ConversationList extends ConsumerWidget {
   }
 }
 
-// ── Empty State ────────────────────────────────────────────────────────────
+// ── Empty / Error ─────────────────────────────────────────────────────────
 
-class _EmptyConversations extends StatelessWidget {
-  const _EmptyConversations({
-    required this.isFiltered,
-    required this.onNewChat,
-  });
+class _EmptyState extends StatelessWidget {
+  const _EmptyState({required this.isFiltered, required this.onNewChat});
   final bool isFiltered;
   final VoidCallback onNewChat;
 
@@ -549,73 +784,103 @@ class _EmptyConversations extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 40),
+        padding: const EdgeInsets.symmetric(horizontal: 36),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              width: 100,
-              height: 100,
+              width: 96,
+              height: 96,
               decoration: BoxDecoration(
-                color: AppColors.primaryLighter,
+                gradient: LinearGradient(
+                  colors: [
+                    AppColors.primary.withOpacity(0.15),
+                    AppColors.violet.withOpacity(0.15),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
                 shape: BoxShape.circle,
+                border: Border.all(color: AppColors.glassBorder),
               ),
               child: const Icon(
-                Icons.chat_bubble_outline_rounded,
-                size: 48,
+                Icons.bubble_chart_rounded,
+                size: 44,
                 color: AppColors.primary,
               ),
             )
                 .animate()
                 .scale(
                   begin: const Offset(0.7, 0.7),
-                  duration: 600.ms,
+                  duration: 500.ms,
                   curve: Curves.elasticOut,
                 )
                 .fadeIn(),
-            const SizedBox(height: 24),
+            const SizedBox(height: 22),
             Text(
-              isFiltered ? 'لا توجد نتائج' : AppStrings.noConversations,
-              style: AppTypography.titleMedium.copyWith(
-                fontWeight: FontWeight.w700,
-                color: AppColors.grey800,
-              ),
+              isFiltered ? 'لا توجد نتائج هنا' : 'الفضاء هادئ الآن',
               textAlign: TextAlign.center,
-            ).animate().fadeIn(delay: 200.ms).slideY(begin: 0.2),
-            const SizedBox(height: 8),
+              style: const TextStyle(
+                fontFamily: 'Tajawal',
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: AppColors.ink,
+              ),
+            ).animate().fadeIn(delay: 180.ms),
+            const SizedBox(height: 6),
             Text(
               isFiltered
-                  ? 'حاول البحث بكلمة مختلفة'
-                  : AppStrings.noConversationsSubtitle,
-              style: AppTypography.bodyMedium.copyWith(
-                color: AppColors.grey500,
-                height: 1.6,
-              ),
+                  ? 'حاول كلمة أخرى أو انتقل لقسم مختلف.'
+                  : 'ابدأ محادثتك الأولى وامنحها روحاً.',
               textAlign: TextAlign.center,
-            ).animate().fadeIn(delay: 280.ms),
+              style: TextStyle(
+                fontFamily: 'Tajawal',
+                fontSize: 13.5,
+                height: 1.6,
+                color: AppColors.inkMuted,
+              ),
+            ).animate().fadeIn(delay: 260.ms),
             if (!isFiltered) ...[
-              const SizedBox(height: 32),
-              SizedBox(
-                width: 180,
-                height: 48,
-                child: ElevatedButton(
-                  onPressed: onNewChat,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
+              const SizedBox(height: 24),
+              GestureDetector(
+                onTap: onNewChat,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 22,
+                    vertical: 14,
                   ),
-                  child: Text(
-                    'بدء محادثة',
-                    style: AppTypography.labelLarge.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: AppColors.auroraStops,
                     ),
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.primary.withOpacity(0.3),
+                        blurRadius: 18,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.add_rounded, color: Colors.white, size: 18),
+                      SizedBox(width: 8),
+                      Text(
+                        'محادثة جديدة',
+                        style: TextStyle(
+                          fontFamily: 'Tajawal',
+                          color: Colors.white,
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.2,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ).animate().fadeIn(delay: 350.ms).slideY(begin: 0.3),
+              ).animate().fadeIn(delay: 340.ms).slideY(begin: 0.3),
             ],
           ],
         ),
@@ -634,18 +899,32 @@ class _ErrorState extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.wifi_off_rounded, size: 48, color: AppColors.grey300),
-          const SizedBox(height: 16),
-          Text(AppStrings.somethingWrong, style: AppTypography.bodyMedium),
-          const SizedBox(height: 12),
+          const Icon(Icons.cloud_off_rounded,
+              size: 44, color: AppColors.inkMuted),
+          const SizedBox(height: 14),
+          const Text(
+            'تعذّر الوصول الآن',
+            style: TextStyle(
+              fontFamily: 'Tajawal',
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: AppColors.ink,
+            ),
+          ),
+          const SizedBox(height: 10),
           TextButton.icon(
             onPressed: onRetry,
             icon: const Icon(Icons.refresh_rounded),
-            label: Text(AppStrings.retry),
+            label: const Text(
+              'إعادة المحاولة',
+              style: TextStyle(
+                fontFamily: 'Tajawal',
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ),
         ],
       ),
     );
   }
 }
-

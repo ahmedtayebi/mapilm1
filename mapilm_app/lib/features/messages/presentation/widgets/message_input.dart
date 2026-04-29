@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -6,7 +8,6 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_strings.dart';
-import '../../../../core/constants/app_typography.dart';
 import '../../domain/entities/message_entity.dart';
 
 class MessageInput extends StatefulWidget {
@@ -98,56 +99,74 @@ class _MessageInputState extends State<MessageInput>
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 16,
-            offset: const Offset(0, -2),
-          ),
-        ],
-      ),
-      child: SafeArea(
-        top: false,
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 6, 12, 10),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (widget.replyTo != null) _buildReplyBar(),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  // Attachment button
-                  _InputIconBtn(
-                    icon: Icons.add_rounded,
-                    onTap: _showAttachmentSheet,
-                    color: AppColors.grey500,
-                  ),
-                  const SizedBox(width: 6),
-                  // Text field
-                  Expanded(child: _buildTextField()),
-                  const SizedBox(width: 6),
-                  // Send / Mic
-                  AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 180),
-                    transitionBuilder: (child, anim) => ScaleTransition(
-                      scale: CurvedAnimation(
-                        parent: anim,
-                        curve: Curves.easeOutBack,
-                      ),
-                      child: child,
+            if (widget.replyTo != null) _ReplyBar(
+              reply: widget.replyTo!,
+              onCancel: widget.onCancelReply,
+            ),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(26),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.85),
+                    borderRadius: BorderRadius.circular(26),
+                    border: Border.all(
+                      color: Colors.white.withOpacity(0.85),
+                      width: 1,
                     ),
-                    child: _hasText
-                        ? _SendButton(
-                            key: const ValueKey('send'),
-                            onTap: _sendText,
-                          )
-                        : _MicButton(key: const ValueKey('mic')),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.ink.withOpacity(0.10),
+                        blurRadius: 28,
+                        offset: const Offset(0, 12),
+                      ),
+                      BoxShadow(
+                        color: AppColors.primary.withOpacity(0.06),
+                        blurRadius: 18,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
-                ],
+                  padding: const EdgeInsets.fromLTRB(6, 6, 6, 6),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      _RoundIconBtn(
+                        icon: Icons.add_rounded,
+                        onTap: _showAttachmentSheet,
+                      ),
+                      const SizedBox(width: 4),
+                      Expanded(child: _buildTextField()),
+                      const SizedBox(width: 6),
+                      AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 220),
+                        switchInCurve: Curves.easeOutBack,
+                        switchOutCurve: Curves.easeInBack,
+                        transitionBuilder: (child, anim) => ScaleTransition(
+                          scale: anim,
+                          child: FadeTransition(
+                            opacity: anim,
+                            child: child,
+                          ),
+                        ),
+                        child: _hasText
+                            ? _SendOrb(
+                                key: const ValueKey('send'),
+                                onTap: _sendText,
+                              )
+                            : const _MicOrb(key: ValueKey('mic')),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
           ],
@@ -158,49 +177,63 @@ class _MessageInputState extends State<MessageInput>
 
   Widget _buildTextField() {
     return Container(
-      constraints: const BoxConstraints(maxHeight: 130),
-      decoration: BoxDecoration(
-        color: AppColors.grey100,
-        borderRadius: BorderRadius.circular(24),
-      ),
+      constraints: const BoxConstraints(maxHeight: 140),
+      padding: const EdgeInsets.symmetric(horizontal: 6),
       child: TextField(
         controller: _controller,
         focusNode: _focusNode,
         maxLines: null,
         textInputAction: TextInputAction.newline,
         keyboardType: TextInputType.multiline,
-        style: AppTypography.bodyMedium.copyWith(
-          color: AppColors.onSurface,
+        textDirection: TextDirection.rtl,
+        style: const TextStyle(
+          fontFamily: 'Tajawal',
+          fontSize: 14.5,
+          fontWeight: FontWeight.w500,
+          color: AppColors.ink,
+          height: 1.4,
         ),
         cursorColor: AppColors.primary,
+        cursorWidth: 2,
         onChanged: _onTextChanged,
         decoration: InputDecoration(
           hintText: AppStrings.typeMessage,
-          hintStyle: AppTypography.bodyMedium.copyWith(
-            color: AppColors.grey400,
+          hintStyle: const TextStyle(
+            fontFamily: 'Tajawal',
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: AppColors.inkMuted,
           ),
           border: InputBorder.none,
           enabledBorder: InputBorder.none,
           focusedBorder: InputBorder.none,
-          filled: false,
+          isDense: true,
           contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 10,
+            horizontal: 8,
+            vertical: 14,
           ),
         ),
       ),
     );
   }
+}
 
-  Widget _buildReplyBar() {
-    final reply = widget.replyTo!;
+// ── Reply Bar ─────────────────────────────────────────────────────────────
+
+class _ReplyBar extends StatelessWidget {
+  const _ReplyBar({required this.reply, required this.onCancel});
+  final MessageEntity reply;
+  final VoidCallback? onCancel;
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 10, 8, 10),
-      decoration: const BoxDecoration(
-        color: AppColors.primaryLighter,
-        border: Border(
-          bottom: BorderSide(color: AppColors.divider),
-        ),
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsetsDirectional.fromSTEB(14, 10, 8, 10),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.92),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.glassBorder),
       ),
       child: Row(
         children: [
@@ -208,27 +241,44 @@ class _MessageInputState extends State<MessageInput>
             width: 3,
             height: 36,
             decoration: BoxDecoration(
-              color: AppColors.primary,
+              gradient: const LinearGradient(
+                colors: AppColors.auroraStops,
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+              ),
               borderRadius: BorderRadius.circular(2),
             ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 12),
+          const Icon(
+            Icons.reply_rounded,
+            size: 16,
+            color: AppColors.primary,
+          ),
+          const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 if (reply.senderName != null)
                   Text(
                     reply.senderName!,
-                    style: AppTypography.labelSmall.copyWith(
+                    style: const TextStyle(
+                      fontFamily: 'Tajawal',
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w800,
                       color: AppColors.primary,
-                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.2,
                     ),
                   ),
                 Text(
                   reply.content ?? '...',
-                  style: AppTypography.bodySmall.copyWith(
-                    color: AppColors.grey600,
+                  style: const TextStyle(
+                    fontFamily: 'Tajawal',
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.inkSoft,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -240,9 +290,9 @@ class _MessageInputState extends State<MessageInput>
             icon: const Icon(
               Icons.close_rounded,
               size: 18,
-              color: AppColors.grey500,
+              color: AppColors.inkMuted,
             ),
-            onPressed: widget.onCancelReply,
+            onPressed: onCancel,
             padding: const EdgeInsets.all(8),
             constraints: const BoxConstraints(),
           ),
@@ -252,40 +302,11 @@ class _MessageInputState extends State<MessageInput>
   }
 }
 
-// ── Input Icon Button ──────────────────────────────────────────────────────
+// ── Action buttons ────────────────────────────────────────────────────────
 
-class _InputIconBtn extends StatelessWidget {
-  const _InputIconBtn({
-    required this.icon,
-    required this.onTap,
-    required this.color,
-  });
+class _RoundIconBtn extends StatelessWidget {
+  const _RoundIconBtn({required this.icon, required this.onTap});
   final IconData icon;
-  final VoidCallback onTap;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      borderRadius: BorderRadius.circular(12),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: SizedBox(
-          width: 42,
-          height: 42,
-          child: Icon(icon, color: color, size: 24),
-        ),
-      ),
-    );
-  }
-}
-
-// ── Send Button ────────────────────────────────────────────────────────────
-
-class _SendButton extends StatelessWidget {
-  const _SendButton({super.key, required this.onTap});
   final VoidCallback onTap;
 
   @override
@@ -293,55 +314,82 @@ class _SendButton extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 44,
-        height: 44,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [AppColors.primary, Color(0xFF4B6EF5)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: Color(0x402038F5),
-              blurRadius: 12,
-              offset: Offset(0, 4),
-            ),
-          ],
+        width: 42,
+        height: 42,
+        decoration: BoxDecoration(
+          color: AppColors.ink.withOpacity(0.045),
+          borderRadius: BorderRadius.circular(14),
         ),
-        child: const Icon(Icons.send_rounded, color: Colors.white, size: 20),
+        child: Icon(icon, color: AppColors.inkSoft, size: 22),
       ),
     );
   }
 }
 
-// ── Mic Button ─────────────────────────────────────────────────────────────
+class _SendOrb extends StatelessWidget {
+  const _SendOrb({super.key, required this.onTap});
+  final VoidCallback onTap;
 
-class _MicButton extends StatelessWidget {
-  const _MicButton({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 46,
+        height: 46,
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: AppColors.auroraStops,
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(15),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primary.withOpacity(0.40),
+              blurRadius: 14,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: const Icon(
+          Icons.arrow_upward_rounded,
+          color: Colors.white,
+          size: 22,
+        ),
+      ),
+    );
+  }
+}
+
+class _MicOrb extends StatelessWidget {
+  const _MicOrb({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 44,
-      height: 44,
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [AppColors.primary, Color(0xFF4B6EF5)],
+      width: 46,
+      height: 46,
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: AppColors.auroraStops,
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        shape: BoxShape.circle,
+        borderRadius: BorderRadius.circular(15),
         boxShadow: [
           BoxShadow(
-            color: Color(0x402038F5),
-            blurRadius: 12,
-            offset: Offset(0, 4),
+            color: AppColors.primary.withOpacity(0.40),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
-      child: const Icon(Icons.mic_rounded, color: Colors.white, size: 22),
+      child: const Icon(
+        Icons.mic_rounded,
+        color: Colors.white,
+        size: 22,
+      ),
     );
   }
 }
@@ -349,66 +397,84 @@ class _MicButton extends StatelessWidget {
 // ── Attachment Sheet ───────────────────────────────────────────────────────
 
 class _AttachmentSheet extends StatelessWidget {
-  const _AttachmentSheet({
-    required this.onCamera,
-    required this.onGallery,
-  });
+  const _AttachmentSheet({required this.onCamera, required this.onGallery});
   final VoidCallback onCamera;
   final VoidCallback onGallery;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.fromLTRB(12, 0, 12, 28),
+      margin: const EdgeInsets.fromLTRB(14, 0, 14, 28),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
+        color: AppColors.pearl,
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: AppColors.glassBorder),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.10),
-            blurRadius: 30,
-            offset: const Offset(0, -4),
+            color: AppColors.ink.withOpacity(0.18),
+            blurRadius: 40,
+            offset: const Offset(0, -6),
           ),
         ],
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           Container(
-            width: 36,
+            width: 38,
             height: 4,
             decoration: BoxDecoration(
-              color: AppColors.grey200,
+              color: AppColors.glassBorder,
               borderRadius: BorderRadius.circular(2),
             ),
           ),
           const SizedBox(height: 16),
+          const Text(
+            'إرسال محتوى',
+            style: TextStyle(
+              fontFamily: 'Tajawal',
+              fontSize: 15,
+              fontWeight: FontWeight.w800,
+              color: AppColors.ink,
+              letterSpacing: -0.2,
+            ),
+          ),
+          const SizedBox(height: 14),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
+            padding: const EdgeInsets.symmetric(horizontal: 18),
             child: Row(
               children: [
                 Expanded(
                   child: _AttachOption(
-                    icon: Icons.camera_alt_rounded,
+                    icon: Icons.photo_camera_rounded,
                     label: 'الكاميرا',
-                    color: AppColors.primary,
+                    colors: const [AppColors.primary, AppColors.violet],
                     onTap: onCamera,
                   ),
                 ),
-                const SizedBox(width: 16),
+                const SizedBox(width: 12),
                 Expanded(
                   child: _AttachOption(
                     icon: Icons.photo_library_rounded,
-                    label: 'معرض الصور',
-                    color: const Color(0xFF7C3AED),
+                    label: 'المعرض',
+                    colors: const [AppColors.violet, AppColors.rose],
                     onTap: onGallery,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _AttachOption(
+                    icon: Icons.description_rounded,
+                    label: 'مستند',
+                    colors: const [AppColors.peach, AppColors.amber],
+                    onTap: () => Navigator.pop(context),
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 22),
         ],
       ),
     )
@@ -427,12 +493,12 @@ class _AttachOption extends StatelessWidget {
   const _AttachOption({
     required this.icon,
     required this.label,
-    required this.color,
+    required this.colors,
     required this.onTap,
   });
   final IconData icon;
   final String label;
-  final Color color;
+  final List<Color> colors;
   final VoidCallback onTap;
 
   @override
@@ -440,11 +506,11 @@ class _AttachOption extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        height: 80,
+        height: 92,
         decoration: BoxDecoration(
-          color: color.withOpacity(0.08),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: color.withOpacity(0.2)),
+          color: Colors.white.withOpacity(0.85),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppColors.glassBorder),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -453,17 +519,30 @@ class _AttachOption extends StatelessWidget {
               width: 44,
               height: 44,
               decoration: BoxDecoration(
-                color: color.withOpacity(0.15),
-                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  colors: colors,
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(14),
+                boxShadow: [
+                  BoxShadow(
+                    color: colors.first.withOpacity(0.32),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
               ),
-              child: Icon(icon, color: color, size: 22),
+              child: Icon(icon, color: Colors.white, size: 22),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
             Text(
               label,
-              style: AppTypography.labelSmall.copyWith(
-                color: color,
-                fontWeight: FontWeight.w600,
+              style: const TextStyle(
+                fontFamily: 'Tajawal',
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: AppColors.inkSoft,
               ),
             ),
           ],

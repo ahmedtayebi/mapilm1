@@ -7,7 +7,6 @@ import 'package:intl/intl.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_strings.dart';
-import '../../../../core/constants/app_typography.dart';
 import '../../domain/entities/message_entity.dart';
 
 // ── Public API ─────────────────────────────────────────────────────────────
@@ -37,7 +36,7 @@ class MessageBubble extends StatelessWidget {
     if (message.isDeleted) return _DeletedBubble(isFromMe: isFromMe);
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 3),
+      padding: const EdgeInsets.only(bottom: 4),
       child: Align(
         alignment: isFromMe
             ? AlignmentDirectional.centerEnd
@@ -60,21 +59,23 @@ class MessageBubble extends StatelessWidget {
                 if (showSenderName && !isFromMe && message.senderName != null)
                   Padding(
                     padding: const EdgeInsetsDirectional.only(
-                      start: 12,
-                      bottom: 3,
+                      start: 14,
+                      bottom: 4,
                     ),
                     child: Text(
                       message.senderName!,
-                      style: AppTypography.labelSmall.copyWith(
+                      style: TextStyle(
+                        fontFamily: 'Tajawal',
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.2,
                         color: senderColor ?? AppColors.primary,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 12,
                       ),
                     ),
                   ),
                 if (message.replyTo != null) ...[
                   _ReplyPreview(reply: message.replyTo!, isFromMe: isFromMe),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 3),
                 ],
                 _BubbleBody(
                   message: message,
@@ -88,11 +89,11 @@ class MessageBubble extends StatelessWidget {
       ),
     )
         .animate()
-        .fadeIn(duration: 200.ms)
+        .fadeIn(duration: 220.ms)
         .slideX(
-          begin: isFromMe ? 0.08 : -0.08,
+          begin: isFromMe ? 0.06 : -0.06,
           end: 0,
-          duration: 220.ms,
+          duration: 240.ms,
           curve: Curves.easeOutCubic,
         );
   }
@@ -115,10 +116,15 @@ class MessageBubble extends StatelessWidget {
           Clipboard.setData(ClipboardData(text: message.content ?? ''));
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: const Text(AppStrings.copiedToClipboard),
+              content: const Text(
+                AppStrings.copiedToClipboard,
+                style: TextStyle(fontFamily: 'Tajawal'),
+              ),
               behavior: SnackBarBehavior.floating,
+              backgroundColor: AppColors.ink,
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
+                borderRadius: BorderRadius.circular(14),
+              ),
               margin: const EdgeInsets.all(16),
               duration: const Duration(seconds: 2),
             ),
@@ -144,35 +150,31 @@ class DateSeparator extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 16),
+      padding: const EdgeInsets.symmetric(vertical: 18),
       child: Row(
         children: [
-          Expanded(
-            child: Container(
-              height: 1,
-              color: AppColors.divider,
-            ),
-          ),
+          Expanded(child: _Hairline()),
           const SizedBox(width: 12),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
             decoration: BoxDecoration(
-              color: AppColors.grey100,
+              color: Colors.white.withOpacity(0.85),
               borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: AppColors.glassBorder),
             ),
             child: Text(
               _formatDate(date),
-              style: AppTypography.labelSmall.copyWith(
-                color: AppColors.grey500,
-                fontWeight: FontWeight.w600,
+              style: const TextStyle(
+                fontFamily: 'Tajawal',
                 fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: AppColors.inkMuted,
+                letterSpacing: 0.3,
               ),
             ),
           ),
           const SizedBox(width: 12),
-          Expanded(
-            child: Container(height: 1, color: AppColors.divider),
-          ),
+          Expanded(child: _Hairline()),
         ],
       ),
     );
@@ -184,6 +186,23 @@ class DateSeparator extends StatelessWidget {
     if (diff.inDays == 0) return AppStrings.today;
     if (diff.inDays == 1) return AppStrings.yesterday;
     return DateFormat('EEEE، d MMMM', 'ar').format(dt);
+  }
+}
+
+class _Hairline extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 1,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppColors.glassBorder,
+            AppColors.glassBorder.withOpacity(0),
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -218,33 +237,34 @@ class _TypingIndicatorState extends State<TypingIndicator>
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
+      padding: const EdgeInsets.only(bottom: 6),
       child: Align(
         alignment: AlignmentDirectional.centerStart,
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: Colors.white.withOpacity(0.92),
             borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(20),
-              topRight: Radius.circular(20),
-              bottomLeft: Radius.circular(4),
-              bottomRight: Radius.circular(20),
+              topLeft: Radius.circular(22),
+              topRight: Radius.circular(22),
+              bottomLeft: Radius.circular(6),
+              bottomRight: Radius.circular(22),
             ),
+            border: Border.all(color: AppColors.glassBorder),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.06),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
+                color: AppColors.ink.withOpacity(0.05),
+                blurRadius: 14,
+                offset: const Offset(0, 4),
               ),
             ],
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
-            children: List.generate(3, (i) => _TypingDot(
-              controller: _ctrl,
-              delay: i * 0.2,
-            )),
+            children: List.generate(
+              3,
+              (i) => _TypingDot(controller: _ctrl, index: i),
+            ),
           ),
         ),
       ),
@@ -253,25 +273,26 @@ class _TypingIndicatorState extends State<TypingIndicator>
 }
 
 class _TypingDot extends StatelessWidget {
-  const _TypingDot({required this.controller, required this.delay});
+  const _TypingDot({required this.controller, required this.index});
   final AnimationController controller;
-  final double delay;
+  final int index;
 
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: controller,
       builder: (context, _) {
-        final t = (controller.value - delay).clamp(0.0, 1.0);
+        final t = (controller.value - index * 0.18).clamp(0.0, 1.0);
         final y = -math.sin(t * math.pi) * 4;
+        final colors = AppColors.auroraStops;
         return Transform.translate(
           offset: Offset(0, y),
           child: Container(
             width: 7,
             height: 7,
-            margin: const EdgeInsets.symmetric(horizontal: 2),
+            margin: const EdgeInsets.symmetric(horizontal: 2.4),
             decoration: BoxDecoration(
-              color: AppColors.grey400,
+              color: colors[index % colors.length],
               shape: BoxShape.circle,
             ),
           ),
@@ -299,34 +320,37 @@ class _BubbleBody extends StatelessWidget {
     final isImage = message.type == MessageType.image;
     return Container(
       padding: isImage
-          ? const EdgeInsets.all(3)
-          : const EdgeInsets.fromLTRB(14, 10, 14, 8),
+          ? const EdgeInsets.all(4)
+          : const EdgeInsets.fromLTRB(15, 11, 15, 9),
       decoration: BoxDecoration(
         gradient: isFromMe
             ? const LinearGradient(
-                colors: [Color(0xFF2038F5), Color(0xFF4B6EF5)],
+                colors: AppColors.auroraStops,
                 begin: Alignment.topRight,
                 end: Alignment.bottomLeft,
               )
             : null,
-        color: isFromMe ? null : AppColors.surface,
+        color: isFromMe ? null : Colors.white.withOpacity(0.96),
         borderRadius: BorderRadius.only(
-          topLeft: const Radius.circular(20),
-          topRight: const Radius.circular(20),
+          topLeft: const Radius.circular(22),
+          topRight: const Radius.circular(22),
           bottomLeft: isFromMe
-              ? const Radius.circular(20)
-              : const Radius.circular(4),
+              ? const Radius.circular(22)
+              : const Radius.circular(6),
           bottomRight: isFromMe
-              ? const Radius.circular(4)
-              : const Radius.circular(20),
+              ? const Radius.circular(6)
+              : const Radius.circular(22),
         ),
+        border: isFromMe
+            ? null
+            : Border.all(color: AppColors.glassBorder, width: 1),
         boxShadow: [
           BoxShadow(
             color: isFromMe
-                ? AppColors.primary.withOpacity(0.25)
-                : Colors.black.withOpacity(0.06),
-            blurRadius: isFromMe ? 12 : 8,
-            offset: const Offset(0, 3),
+                ? AppColors.primary.withOpacity(0.32)
+                : AppColors.ink.withOpacity(0.05),
+            blurRadius: isFromMe ? 16 : 10,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -336,7 +360,7 @@ class _BubbleBody extends StatelessWidget {
         children: [
           _buildContent(context),
           if (!isImage) ...[
-            const SizedBox(height: 3),
+            const SizedBox(height: 4),
             _buildMeta(),
           ],
         ],
@@ -349,8 +373,12 @@ class _BubbleBody extends StatelessWidget {
       case MessageType.text:
         return Text(
           message.content ?? '',
-          style: AppTypography.messageText.copyWith(
-            color: isFromMe ? Colors.white : AppColors.onBubbleIncoming,
+          style: TextStyle(
+            fontFamily: 'Tajawal',
+            fontSize: 14.5,
+            height: 1.5,
+            fontWeight: FontWeight.w500,
+            color: isFromMe ? Colors.white : AppColors.ink,
           ),
         );
 
@@ -359,16 +387,16 @@ class _BubbleBody extends StatelessWidget {
           alignment: AlignmentDirectional.bottomEnd,
           children: [
             ClipRRect(
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(18),
               child: CachedNetworkImage(
                 imageUrl: message.mediaUrl ?? '',
                 width: 220,
-                height: 200,
+                height: 220,
                 fit: BoxFit.cover,
                 placeholder: (_, __) => Container(
                   width: 220,
-                  height: 200,
-                  color: AppColors.grey200,
+                  height: 220,
+                  color: AppColors.pearlDeep,
                   child: const Center(
                     child: CircularProgressIndicator(
                       color: AppColors.primary,
@@ -378,16 +406,19 @@ class _BubbleBody extends StatelessWidget {
                 ),
                 errorWidget: (_, __, ___) => Container(
                   width: 220,
-                  height: 200,
-                  color: AppColors.grey100,
-                  child: const Icon(Icons.broken_image_rounded,
-                      size: 40, color: AppColors.grey300),
+                  height: 220,
+                  color: AppColors.pearlDeep,
+                  child: const Icon(
+                    Icons.broken_image_rounded,
+                    size: 40,
+                    color: AppColors.inkMuted,
+                  ),
                 ),
               ),
             ),
             Positioned(
-              bottom: 6,
-              right: 8,
+              bottom: 8,
+              right: 10,
               child: _buildImageMeta(),
             ),
           ],
@@ -403,9 +434,11 @@ class _BubbleBody extends StatelessWidget {
       case MessageType.deleted:
         return Text(
           AppStrings.messageDeleted,
-          style: AppTypography.bodySmall.copyWith(
+          style: TextStyle(
+            fontFamily: 'Tajawal',
+            fontSize: 13,
             fontStyle: FontStyle.italic,
-            color: isFromMe ? Colors.white60 : AppColors.grey500,
+            color: isFromMe ? Colors.white60 : AppColors.inkMuted,
           ),
         );
 
@@ -414,16 +447,19 @@ class _BubbleBody extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-              Icons.insert_drive_file_rounded,
-              color: isFromMe ? Colors.white70 : AppColors.grey500,
+              Icons.description_outlined,
+              color: isFromMe ? Colors.white70 : AppColors.inkMuted,
               size: 20,
             ),
             const SizedBox(width: 8),
             Flexible(
               child: Text(
                 message.content ?? 'ملف',
-                style: AppTypography.bodyMedium.copyWith(
-                  color: isFromMe ? Colors.white : AppColors.onSurface,
+                style: TextStyle(
+                  fontFamily: 'Tajawal',
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: isFromMe ? Colors.white : AppColors.ink,
                 ),
               ),
             ),
@@ -439,15 +475,21 @@ class _BubbleBody extends StatelessWidget {
         if (message.isEdited)
           Text(
             'معدّل · ',
-            style: AppTypography.messageTime.copyWith(
-              color: isFromMe ? Colors.white54 : AppColors.grey400,
+            style: TextStyle(
+              fontFamily: 'Tajawal',
               fontSize: 10,
+              fontWeight: FontWeight.w500,
+              color: isFromMe ? Colors.white54 : AppColors.inkMuted,
             ),
           ),
         Text(
           DateFormat('HH:mm').format(message.sentAt),
-          style: AppTypography.messageTime.copyWith(
-            color: isFromMe ? Colors.white70 : AppColors.grey400,
+          style: TextStyle(
+            fontFamily: 'Tajawal',
+            fontSize: 10.5,
+            fontWeight: FontWeight.w600,
+            color: isFromMe ? Colors.white70 : AppColors.inkMuted,
+            letterSpacing: 0.3,
           ),
         ),
         if (isFromMe) ...[
@@ -460,19 +502,21 @@ class _BubbleBody extends StatelessWidget {
 
   Widget _buildImageMeta() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.45),
-        borderRadius: BorderRadius.circular(10),
+        color: AppColors.ink.withOpacity(0.55),
+        borderRadius: BorderRadius.circular(11),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
             DateFormat('HH:mm').format(message.sentAt),
-            style: AppTypography.messageTime.copyWith(
+            style: const TextStyle(
+              fontFamily: 'Tajawal',
+              fontSize: 10.5,
+              fontWeight: FontWeight.w700,
               color: Colors.white,
-              fontSize: 10,
             ),
           ),
           if (isFromMe) ...[
@@ -495,44 +539,45 @@ class _ReplyPreview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+      padding: const EdgeInsetsDirectional.fromSTEB(12, 8, 10, 8),
       decoration: BoxDecoration(
         color: isFromMe
             ? Colors.white.withOpacity(0.18)
-            : AppColors.primaryLighter,
-        borderRadius: const BorderRadius.all(Radius.circular(12)),
-        border: Border(
-          right: BorderSide(
+            : AppColors.primary.withOpacity(0.06),
+        borderRadius: const BorderRadius.all(Radius.circular(14)),
+        border: BorderDirectional(
+          end: BorderSide(
             color: isFromMe ? Colors.white70 : AppColors.primary,
             width: 3,
           ),
         ),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Flexible(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (reply.senderName != null)
-                  Text(
-                    reply.senderName!,
-                    style: AppTypography.labelSmall.copyWith(
-                      color: isFromMe ? Colors.white : AppColors.primary,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                Text(
-                  reply.content ?? '...',
-                  style: AppTypography.bodySmall.copyWith(
-                    color: isFromMe ? Colors.white70 : AppColors.grey600,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
+          if (reply.senderName != null)
+            Text(
+              reply.senderName!,
+              style: TextStyle(
+                fontFamily: 'Tajawal',
+                fontSize: 11.5,
+                fontWeight: FontWeight.w800,
+                color: isFromMe ? Colors.white : AppColors.primary,
+                letterSpacing: 0.2,
+              ),
             ),
+          const SizedBox(height: 1),
+          Text(
+            reply.content ?? '...',
+            style: TextStyle(
+              fontFamily: 'Tajawal',
+              fontSize: 12.5,
+              fontWeight: FontWeight.w500,
+              color: isFromMe ? Colors.white70 : AppColors.inkSoft,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),
@@ -549,7 +594,7 @@ class _DeletedBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
+      padding: const EdgeInsets.symmetric(vertical: 3),
       child: Align(
         alignment: isFromMe
             ? AlignmentDirectional.centerEnd
@@ -557,9 +602,9 @@ class _DeletedBubble extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
           decoration: BoxDecoration(
-            color: AppColors.grey100,
+            color: AppColors.pearlDeep.withOpacity(0.8),
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: AppColors.grey200),
+            border: Border.all(color: AppColors.glassBorder),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -567,14 +612,17 @@ class _DeletedBubble extends StatelessWidget {
               const Icon(
                 Icons.block_rounded,
                 size: 14,
-                color: AppColors.grey400,
+                color: AppColors.inkMuted,
               ),
               const SizedBox(width: 6),
               Text(
                 AppStrings.messageDeleted,
-                style: AppTypography.bodySmall.copyWith(
+                style: TextStyle(
+                  fontFamily: 'Tajawal',
+                  fontSize: 12.5,
                   fontStyle: FontStyle.italic,
-                  color: AppColors.grey500,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.inkMuted,
                 ),
               ),
             ],
@@ -607,28 +655,28 @@ class _StatusIcon extends StatelessWidget {
           ),
         );
       case MessageStatus.sent:
-        return Icon(
+        return const Icon(
           Icons.check_rounded,
           size: 14,
-          color: onDark ? Colors.white70 : Colors.white70,
+          color: Colors.white70,
         );
       case MessageStatus.delivered:
-        return Icon(
+        return const Icon(
           Icons.done_all_rounded,
           size: 14,
-          color: onDark ? Colors.white70 : Colors.white70,
+          color: Colors.white70,
         );
       case MessageStatus.seen:
-        return Icon(
+        return const Icon(
           Icons.done_all_rounded,
           size: 14,
-          color: onDark ? Colors.lightBlueAccent : Colors.lightBlueAccent,
+          color: Color(0xFFB8FFE9),
         );
       case MessageStatus.failed:
         return const Icon(
           Icons.error_outline_rounded,
           size: 14,
-          color: Colors.redAccent,
+          color: Color(0xFFFFB4B4),
         );
     }
   }
@@ -683,22 +731,28 @@ class _VoiceBubbleState extends State<VoiceBubble>
 
   @override
   Widget build(BuildContext context) {
-    final fgColor = widget.isFromMe ? Colors.white : AppColors.grey600;
-    final accentColor =
-        widget.isFromMe ? Colors.white70 : AppColors.primary;
+    final fg = widget.isFromMe ? Colors.white : AppColors.inkSoft;
+    final accent =
+        widget.isFromMe ? Colors.white : AppColors.primary;
 
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Play/Pause
         GestureDetector(
           onTap: _togglePlay,
           child: Container(
             width: 38,
             height: 38,
             decoration: BoxDecoration(
-              color: accentColor.withOpacity(0.2),
+              color: widget.isFromMe
+                  ? Colors.white.withOpacity(0.2)
+                  : AppColors.primary.withOpacity(0.12),
               shape: BoxShape.circle,
+              border: Border.all(
+                color: widget.isFromMe
+                    ? Colors.white.withOpacity(0.4)
+                    : AppColors.primary.withOpacity(0.25),
+              ),
             ),
             child: Icon(
               _isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
@@ -708,7 +762,6 @@ class _VoiceBubbleState extends State<VoiceBubble>
           ),
         ),
         const SizedBox(width: 10),
-        // Waveform + duration
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -716,8 +769,8 @@ class _VoiceBubbleState extends State<VoiceBubble>
               animation: _waveCtrl,
               builder: (context, _) {
                 return Row(
-                  children: List.generate(20, (i) {
-                    final baseH = 4.0 + (i % 5) * 5.0;
+                  children: List.generate(22, (i) {
+                    final baseH = 4.0 + (i % 5) * 4.5;
                     final animH = _isPlaying
                         ? baseH +
                             math.sin(
@@ -725,14 +778,15 @@ class _VoiceBubbleState extends State<VoiceBubble>
                                 ) *
                                 6
                         : baseH;
+                    final progressed = i < (_isPlaying ? 11 : 0);
                     return Container(
                       margin: const EdgeInsets.symmetric(horizontal: 1),
-                      width: 3,
-                      height: animH.clamp(4.0, 24.0),
+                      width: 2.5,
+                      height: animH.clamp(4.0, 22.0),
                       decoration: BoxDecoration(
-                        color: i < (_isPlaying ? 10 : 0)
-                            ? accentColor
-                            : fgColor.withOpacity(0.5),
+                        color: progressed
+                            ? accent
+                            : fg.withOpacity(0.45),
                         borderRadius: BorderRadius.circular(2),
                       ),
                     );
@@ -740,12 +794,15 @@ class _VoiceBubbleState extends State<VoiceBubble>
                 );
               },
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 5),
             Text(
               _formatDuration(widget.duration),
-              style: AppTypography.messageTime.copyWith(
-                color: fgColor.withOpacity(0.7),
-                fontSize: 11,
+              style: TextStyle(
+                fontFamily: 'Tajawal',
+                fontSize: 10.5,
+                fontWeight: FontWeight.w600,
+                color: fg.withOpacity(0.75),
+                letterSpacing: 0.3,
               ),
             ),
           ],
@@ -781,31 +838,32 @@ class _MessageOptionsSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.fromLTRB(12, 0, 12, 28),
+      margin: const EdgeInsets.fromLTRB(14, 0, 14, 28),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        color: AppColors.pearl,
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: AppColors.glassBorder),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.10),
-            blurRadius: 30,
-            offset: const Offset(0, -4),
+            color: AppColors.ink.withOpacity(0.18),
+            blurRadius: 40,
+            offset: const Offset(0, -6),
           ),
         ],
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           Container(
-            width: 36,
+            width: 38,
             height: 4,
             decoration: BoxDecoration(
-              color: AppColors.grey200,
+              color: AppColors.glassBorder,
               borderRadius: BorderRadius.circular(2),
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           _OptionTile(
             icon: Icons.reply_rounded,
             label: AppStrings.reply,
@@ -816,11 +874,14 @@ class _MessageOptionsSheet extends StatelessWidget {
             _OptionTile(
               icon: Icons.copy_rounded,
               label: AppStrings.copy,
-              color: AppColors.grey600,
+              color: AppColors.violet,
               onTap: onCopy,
             ),
           if (onDelete != null) ...[
-            const Divider(height: 1, indent: 20, endIndent: 20),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 22),
+              child: Divider(height: 1, color: AppColors.glassBorder),
+            ),
             _OptionTile(
               icon: Icons.delete_outline_rounded,
               label: AppStrings.deleteMessage,
@@ -828,7 +889,7 @@ class _MessageOptionsSheet extends StatelessWidget {
               onTap: onDelete!,
             ),
           ],
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
         ],
       ),
     );
@@ -851,21 +912,24 @@ class _OptionTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListTile(
       onTap: onTap,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 2),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 22, vertical: 4),
       leading: Container(
-        width: 40,
-        height: 40,
+        width: 42,
+        height: 42,
         decoration: BoxDecoration(
-          color: color.withOpacity(0.10),
-          borderRadius: BorderRadius.circular(12),
+          color: color.withOpacity(0.12),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: color.withOpacity(0.18)),
         ),
         child: Icon(icon, color: color, size: 20),
       ),
       title: Text(
         label,
-        style: AppTypography.bodyMedium.copyWith(
-          fontWeight: FontWeight.w600,
-          color: color == AppColors.error ? AppColors.error : AppColors.grey800,
+        style: TextStyle(
+          fontFamily: 'Tajawal',
+          fontSize: 14.5,
+          fontWeight: FontWeight.w700,
+          color: color == AppColors.error ? AppColors.error : AppColors.ink,
         ),
       ),
     );
