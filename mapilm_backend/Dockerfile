@@ -7,4 +7,4 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 RUN python manage.py collectstatic --noinput
-CMD sh -c "python manage.py migrate --noinput && gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 1 --timeout 120 --capture-output --access-logfile - --error-logfile - --log-level debug"
+CMD sh -c "python manage.py migrate --noinput && daphne -b 0.0.0.0 -p $PORT config.asgi:application"

@@ -3,7 +3,7 @@ from decouple import config, Csv
 
 DEBUG = False
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='').split(',')
 
 # Strip drf_spectacular — docs are disabled in production; keeping it loaded
 # consumes ~50-80 MB of schema introspection overhead on every worker boot.
@@ -25,7 +25,10 @@ SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 # ── CORS ────────────────────────────────────────────────────────────────────
 CORS_ALLOW_ALL_ORIGINS = False
-CORS_ALLOWED_ORIGINS = config('CORS_ALLOWED_ORIGINS', cast=Csv(), default='')
+_cors_env = config('CORS_ALLOWED_ORIGINS', cast=Csv(), default='')
+if not _cors_env:
+    _cors_env = config('FLUTTER_BASE_URL', default='')
+CORS_ALLOWED_ORIGINS = [o for o in _cors_env.split(',') if o]
 CORS_ALLOW_CREDENTIALS = True
 
 # ── Static files (WhiteNoise) ────────────────────────────────────────────────
@@ -44,14 +47,23 @@ CACHES = {
     }
 }
 
-# ── Channels (WSGI mode) ─────────────────────────────────────────────────────
-# Running gunicorn WSGI — WebSocket consumers are inactive. Use in-memory
-# channel layer so channels_redis never opens a Redis connection in this process.
-CHANNEL_LAYERS = {
-    'default': {
-        'BACKEND': 'channels.layers.InMemoryChannelLayer',
+# ── Channels (Redis) ──────────────────────────────────────────────────────────
+# Redis is required for WebSocket horizontal scaling. Falls back to in-memory
+# only if REDIS_URL is not set.
+_redis_url = config('REDIS_URL', default='')
+if _redis_url:
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels_redis.core.RedisChannelLayer',
+            'CONFIG': {'hosts': [_redis_url]},
+        }
     }
-}
+else:
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels.layers.InMemoryChannelLayer',
+        }
+    }
 
 # ── Logging ─────────────────────────────────────────────────────────────────
 LOGGING['root']['level'] = 'WARNING'  # noqa: F405
