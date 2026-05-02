@@ -3,7 +3,7 @@ from decouple import config, Csv
 
 DEBUG = False
 
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='').split(',')
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='').split(',') + ['healthcheck.railway.app']
 
 # Strip drf_spectacular — docs are disabled in production; keeping it loaded
 # consumes ~50-80 MB of schema introspection overhead on every worker boot.
@@ -67,4 +67,4 @@ else:
     }
 
 # ── Logging ─────────────────────────────────────────────────────────────────
-LOGGING['root']['level'] = 'WARNING'  # noqa: F405
+LOGGING['root']['level'] = 'INFO'  # noqa: F405
