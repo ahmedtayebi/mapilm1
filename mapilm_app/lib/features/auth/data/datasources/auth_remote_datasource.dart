@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import '../../../../core/constants/app_config.dart';
 import '../../../../core/network/dio_client.dart';
 import '../models/user_model.dart';
 
@@ -97,20 +98,20 @@ class AuthRemoteDatasourceImpl implements AuthRemoteDatasource {
     final result = await _auth.signInWithCredential(credential);
     final token = await result.user!.getIdToken();
     final response = await _client.post<Map<String, dynamic>>(
-      '/auth/verify/',
+      AppConfig.authVerify,
       data: {'firebase_token': token},
     );
-    return UserModel.fromJson(response.data!);
+    return _userFromVerify(response.data!);
   }
 
   @override
   Future<UserModel> completeAutoVerify() async {
     final token = await _auth.currentUser!.getIdToken();
     final response = await _client.post<Map<String, dynamic>>(
-      '/auth/verify/',
+      AppConfig.authVerify,
       data: {'firebase_token': token},
     );
-    return UserModel.fromJson(response.data!);
+    return _userFromVerify(response.data!);
   }
 
   @override
@@ -119,23 +120,38 @@ class AuthRemoteDatasourceImpl implements AuthRemoteDatasource {
     String? bio,
     String? avatarPath,
   }) async {
-    FormData formData = FormData.fromMap({
+    final formData = FormData.fromMap({
       'name': name,
-      if (bio != null && bio.isNotEmpty) 'bio': bio,
+      if (bio != null && bio.isNotEmpty) 'status': bio,
       if (avatarPath != null)
         'avatar': await MultipartFile.fromFile(avatarPath),
     });
-    final response = await _client.upload<Map<String, dynamic>>(
-      '/users/me/setup/',
+    // Backend expects PUT /users/profile/update/ (multipart or json).
+    final response = await _client.putUpload<Map<String, dynamic>>(
+      AppConfig.usersUpdate,
       formData,
     );
-    return UserModel.fromJson(response.data!);
+    final data = response.data!;
+    // UpdateProfileView returns {message, user: {...}}.
+    final userJson = data['user'] is Map<String, dynamic>
+        ? data['user'] as Map<String, dynamic>
+        : data;
+    return UserModel.fromJson(userJson);
   }
 
   @override
   Future<UserModel> getMe() async {
     final response =
-        await _client.get<Map<String, dynamic>>('/users/me/');
+        await _client.get<Map<String, dynamic>>(AppConfig.usersMe);
     return UserModel.fromJson(response.data!);
+  }
+
+  // VerifyFirebaseTokenView wraps the user in a {user: {...}, access, refresh}
+  // envelope; pull out the nested user dict.
+  UserModel _userFromVerify(Map<String, dynamic> data) {
+    final userJson = data['user'] is Map<String, dynamic>
+        ? data['user'] as Map<String, dynamic>
+        : data;
+    return UserModel.fromJson(userJson);
   }
 }

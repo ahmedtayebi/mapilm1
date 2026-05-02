@@ -36,6 +36,10 @@ class _OtpScreenState extends ConsumerState<OtpScreen>
   bool _isError = false;
   bool _isVerifying = false;
 
+  // Captured at first build / on every fresh OtpSent so a wrong OTP (which
+  // transitions the notifier to AuthError) doesn't lose the verificationId.
+  String? _verificationId;
+
   @override
   void initState() {
     super.initState();
@@ -50,6 +54,12 @@ class _OtpScreenState extends ConsumerState<OtpScreen>
       TweenSequenceItem(tween: Tween(begin: -8.0, end: 8.0), weight: 2),
       TweenSequenceItem(tween: Tween(begin: 8.0, end: 0.0), weight: 1),
     ]).animate(_shakeController);
+
+    // Pull the verificationId from the OtpSent state we navigated under.
+    final state = ref.read(authNotifierProvider);
+    if (state is OtpSent) {
+      _verificationId = state.verificationId;
+    }
 
     _startCountdown();
     WidgetsBinding.instance
@@ -102,14 +112,17 @@ class _OtpScreenState extends ConsumerState<OtpScreen>
 
   void _verify() {
     if (_currentOtp.length < _kDigits) return;
-    final state = ref.read(authNotifierProvider);
-    if (state is OtpSent) {
-      setState(() => _isVerifying = true);
-      ref.read(authNotifierProvider.notifier).confirmOtp(
-            verificationId: state.verificationId,
-            otp: _currentOtp,
-          );
+    final id = _verificationId;
+    if (id == null) {
+      // No verificationId in flight (rare — direct deep-link or hot-restart).
+      _showErrorSnack('انتهت الجلسة، اطلب رمزاً جديداً.');
+      return;
     }
+    setState(() => _isVerifying = true);
+    ref.read(authNotifierProvider.notifier).confirmOtp(
+          verificationId: id,
+          otp: _currentOtp,
+        );
   }
 
   void _clearFields() {
@@ -133,6 +146,11 @@ class _OtpScreenState extends ConsumerState<OtpScreen>
     final isLoading = authState is AuthLoading;
 
     ref.listen<AuthState>(authNotifierProvider, (_, state) {
+      if (state is OtpSent) {
+        // Resend produced a fresh verificationId — capture it so subsequent
+        // verifies use the new code.
+        _verificationId = state.verificationId;
+      }
       if (state is AuthSuccess) {
         if (state.user.isProfileComplete) {
           context.go(AppRoutes.home);

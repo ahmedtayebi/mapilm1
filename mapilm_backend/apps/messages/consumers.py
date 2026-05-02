@@ -6,8 +6,8 @@ from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
 from django.contrib.auth import get_user_model
 from django.utils import timezone
-from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
-from rest_framework_simplejwt.tokens import UntypedToken
+from firebase_admin import auth as firebase_auth
+from firebase_admin.exceptions import FirebaseError
 
 from apps.conversations.models import Conversation, ConversationMember
 from apps.messages.models import Media, Message, MessageStatus
@@ -24,6 +24,14 @@ def _get_user_by_id(user_id):
         return User.objects.get(id=user_id, is_active=True)
     except User.DoesNotExist:
         return None
+
+
+@database_sync_to_async
+def _get_user_by_firebase_uid(uid: str):
+    """Look up an active user by their Firebase uid (creates one on first WS connect
+    so a freshly-registered user can chat without an extra REST round-trip)."""
+    user, _ = User.objects.get_or_create(firebase_uid=uid)
+    return user if user.is_active else None
 
 
 @database_sync_to_async
@@ -450,8 +458,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     async def _authenticate(self) -> User:
         """
-        Extract and verify the JWT token from the query string.
-        Returns the authenticated User or raises ValueError.
+        Extract and verify the Firebase ID token from the query string.
+        Mirrors apps.users.authentication.FirebaseAuthentication so REST and
+        WebSocket share one auth model.
         """
         qs = self.scope.get('query_string', b'').decode()
         token_str = None
@@ -464,16 +473,24 @@ class ChatConsumer(AsyncWebsocketConsumer):
             raise ValueError('رمز المصادقة مطلوب في معامل token')
 
         try:
-            # UntypedToken validates the signature and expiry without a DB call
-            validated = UntypedToken(token_str)
-            user_id = validated.get('user_id')
-        except (InvalidToken, TokenError) as exc:
-            raise ValueError('رمز المصادقة غير صالح أو منتهي الصلاحية') from exc
+            decoded = await database_sync_to_async(
+                firebase_auth.verify_id_token
+            )(token_str)
+        except firebase_auth.ExpiredIdTokenError as exc:
+            raise ValueError('انتهت صلاحية رمز المصادقة، يرجى إعادة تسجيل الدخول') from exc
+        except (
+            firebase_auth.RevokedIdTokenError,
+            firebase_auth.InvalidIdTokenError,
+        ) as exc:
+            raise ValueError('رمز المصادقة غير صالح') from exc
+        except FirebaseError as exc:
+            raise ValueError('فشل التحقق من رمز المصادقة') from exc
 
-        if not user_id:
+        uid = decoded.get('uid')
+        if not uid:
             raise ValueError('رمز المصادقة لا يحتوي على معرّف المستخدم')
 
-        user = await _get_user_by_id(user_id)
+        user = await _get_user_by_firebase_uid(uid)
         if user is None:
             raise ValueError('المستخدم المرتبط بهذا الرمز غير موجود')
 

@@ -45,7 +45,7 @@ class _PhoneScreenState extends ConsumerState<PhoneScreen> {
       if (state is OtpSent) {
         context.push(
           AppRoutes.otp,
-          extra: '${_country.code}${_phoneController.text.trim()}',
+          extra: _composeE164(),
         );
       }
       if (state is AuthSuccess) {
@@ -221,9 +221,17 @@ class _PhoneScreenState extends ConsumerState<PhoneScreen> {
 
   void _submit() {
     if (_formKey.currentState!.validate()) {
-      final phone = '${_country.code}${_phoneController.text.trim()}';
-      ref.read(authNotifierProvider.notifier).requestOtp(phone);
+      ref.read(authNotifierProvider.notifier).requestOtp(_composeE164());
     }
+  }
+
+  // Drop the national-trunk leading zero (Algeria's `0512…`, Morocco's `06…`,
+  // etc.) before concatenating with the country code — Firebase wants strict
+  // E.164 (`+CC<national-significant-number>`), no trunk prefix.
+  String _composeE164() {
+    final raw = _phoneController.text.trim();
+    final national = raw.replaceFirst(RegExp(r'^0+'), '');
+    return '${_country.code}$national';
   }
 
   void _showError(String message) {

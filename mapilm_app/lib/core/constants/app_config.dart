@@ -41,7 +41,6 @@ abstract final class AppConfig {
   static String conversationUpdate(String id) => '/conversations/$id/update/';
 
   // ── Messages ───────────────────────────────────────────────────────────────
-  static const String messagesList = '/messages/';
   static const String messagesSend = '/messages/send/';
   static const String messagesUpload = '/messages/upload-media/';
   static String messagesForConversation(String convId) => '/messages/$convId/';

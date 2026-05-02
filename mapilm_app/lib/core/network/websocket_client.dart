@@ -1,9 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+
+import '../constants/app_config.dart';
 
 enum WsConnectionState { disconnected, connecting, connected, reconnecting }
 
@@ -37,9 +38,10 @@ class WebSocketClient {
     try {
       final user = FirebaseAuth.instance.currentUser;
       final token = await user?.getIdToken();
-      final baseUrl = dotenv.env['WS_URL'] ?? '';
+      // wsUrl already includes the `/ws` mount prefix (see .env / AppConfig).
       final uri = Uri.parse(
-        '$baseUrl/chat/$_conversationId/?token=$token',
+        '${AppConfig.wsUrl}${AppConfig.wsChatPath(_conversationId!)}'
+        '?token=$token',
       );
 
       _channel = WebSocketChannel.connect(uri);
@@ -74,20 +76,20 @@ class WebSocketClient {
     String? mediaUrl,
   }) {
     send({
-      'type': 'chat_message',
+      'type': 'message.send',
       'content': content,
       'message_type': type,
-      if (replyToId != null) 'reply_to': replyToId,
+      if (replyToId != null) 'reply_to_id': replyToId,
       if (mediaUrl != null) 'media_url': mediaUrl,
     });
   }
 
   void sendTyping(bool isTyping) {
-    send({'type': isTyping ? 'typing_start' : 'typing_stop'});
+    send({'type': isTyping ? 'typing.start' : 'typing.stop'});
   }
 
   void markRead(String messageId) {
-    send({'type': 'mark_read', 'message_id': messageId});
+    send({'type': 'message.read', 'message_id': messageId});
   }
 
   void _startPing() {

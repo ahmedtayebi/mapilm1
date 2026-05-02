@@ -39,25 +39,30 @@ class MessagesNotifier
     final wsClient = ref.read(wsClientProvider);
     wsClient.connect(_conversationId);
     wsClient.messages.listen((data) {
+      // Backend ChatConsumer event-type vocabulary (dot-namespaced):
+      //   message.new / message.delivered / message.read / message.deleted
+      //   typing.start / typing.stop / user.online / user.offline / pong
       final type = data['type'] as String?;
-      if (type == 'chat_message') {
-        final msg = MessageModel.fromWs(data);
+      if (type == 'message.new') {
+        // Outgoing payload wraps the message: {type, message: {...}}
+        final inner = data['message'] as Map<String, dynamic>?;
+        if (inner == null) return;
+        final msg = MessageModel.fromWs(inner);
         state.whenData(
           (messages) => state = AsyncData([msg, ...messages]),
         );
-        // Reset typing when a message arrives
         ref.read(typingProvider(_conversationId).notifier).state = false;
         _typingAutoStopTimer?.cancel();
-      } else if (type == 'typing_start') {
+      } else if (type == 'typing.start') {
         ref.read(typingProvider(_conversationId).notifier).state = true;
         _typingAutoStopTimer?.cancel();
         _typingAutoStopTimer = Timer(const Duration(seconds: 3), () {
           ref.read(typingProvider(_conversationId).notifier).state = false;
         });
-      } else if (type == 'typing_stop') {
+      } else if (type == 'typing.stop') {
         _typingAutoStopTimer?.cancel();
         ref.read(typingProvider(_conversationId).notifier).state = false;
-      } else if (type == 'message_deleted') {
+      } else if (type == 'message.deleted') {
         final msgId = data['message_id'] as String;
         state.whenData(
           (messages) => state = AsyncData(
@@ -75,7 +80,7 @@ class MessagesNotifier
             }).toList(),
           ),
         );
-      } else if (type == 'read_receipt') {
+      } else if (type == 'message.read') {
         final readById = data['user_id'] as String;
         state.whenData(
           (messages) => state = AsyncData(

@@ -13,10 +13,13 @@ class UserModel extends UserEntity {
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) => UserModel(
-        id: json['id'] as String,
-        phone: json['phone'] as String,
+        id: (json['id'] ?? '').toString(),
+        // Backend serializer field is `phone_number`. Tolerate `phone` for
+        // any older payload shape.
+        phone: (json['phone_number'] ?? json['phone'] ?? '').toString(),
         name: json['name'] as String?,
-        bio: json['bio'] as String?,
+        // Backend field is `status` (one-line user status). Tolerate `bio`.
+        bio: (json['status'] ?? json['bio']) as String?,
         avatarUrl: json['avatar_url'] as String?,
         isOnline: json['is_online'] as bool? ?? false,
         lastSeen: json['last_seen'] != null

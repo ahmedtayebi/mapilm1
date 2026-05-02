@@ -26,7 +26,7 @@ class DioClient {
     );
 
     _dio.interceptors.addAll([
-      _AuthInterceptor(),
+      _AuthInterceptor(_dio),
       _ErrorInterceptor(),
       LogInterceptor(
         requestBody: true,
@@ -109,6 +109,9 @@ class DioClient {
 }
 
 class _AuthInterceptor extends Interceptor {
+  _AuthInterceptor(this._dio);
+  final Dio _dio;
+
   @override
   Future<void> onRequest(
     RequestOptions options,
@@ -131,6 +134,8 @@ class _AuthInterceptor extends Interceptor {
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
         try {
+          // Force-refresh the Firebase ID token and retry on the SAME dio
+          // instance so baseUrl + interceptors apply.
           final token = await user.getIdToken(true);
           final opts = Options(
             method: err.requestOptions.method,
@@ -138,9 +143,10 @@ class _AuthInterceptor extends Interceptor {
               ...err.requestOptions.headers,
               'Authorization': 'Bearer $token',
             },
+            contentType: err.requestOptions.contentType,
+            responseType: err.requestOptions.responseType,
           );
-          final dio = Dio();
-          final response = await dio.request<dynamic>(
+          final response = await _dio.request<dynamic>(
             err.requestOptions.path,
             data: err.requestOptions.data,
             queryParameters: err.requestOptions.queryParameters,
