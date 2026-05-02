@@ -27,8 +27,9 @@ SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 CORS_ALLOW_ALL_ORIGINS = False
 _cors_env = config('CORS_ALLOWED_ORIGINS', cast=Csv(), default='')
 if not _cors_env:
-    _cors_env = config('FLUTTER_BASE_URL', default='')
-CORS_ALLOWED_ORIGINS = [o for o in _cors_env.split(',') if o]
+    _fallback = config('FLUTTER_BASE_URL', default='')
+    _cors_env = [_fallback] if _fallback else []
+CORS_ALLOWED_ORIGINS = _cors_env
 CORS_ALLOW_CREDENTIALS = True
 
 # ── Static files (WhiteNoise) ────────────────────────────────────────────────
